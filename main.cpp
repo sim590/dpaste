@@ -26,6 +26,8 @@
 #include <future>
 #include <getopt.h>
 
+#define DPASTE_VERSION "0.0.1"
+
 /* random */
 std::uniform_int_distribution<dht::Value::Id> udist;
 std::mt19937_64 rand_;
@@ -39,11 +41,13 @@ const std::string CONNECTION_FAILURE_MSG = "err.. Failed to connect to the DHT."
 struct ParsedArgs {
     bool fail {false};
     bool help {false};
+    bool version {false};
     dht::InfoHash get_hash {dht::zeroes};
 };
 
 static const constexpr struct option long_options[] = {
    {"help",       no_argument      , nullptr, 'h'},
+   {"version",    no_argument      , nullptr, 'v'},
    {"get",        required_argument, nullptr, 'g'},
    {nullptr,      0                , nullptr,  0}
 };
@@ -51,10 +55,13 @@ static const constexpr struct option long_options[] = {
 ParsedArgs parseArgs(int argc, char *argv[]) {
     ParsedArgs pa;
     int opt;
-    while ((opt = getopt_long(argc, argv, "hg:", long_options, nullptr)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hvg:", long_options, nullptr)) != -1) {
         switch (opt) {
         case 'h':
             pa.help = true;
+            break;
+        case 'v':
+            pa.version = true;
             break;
         case 'g': {
             std::stringstream ss;
@@ -92,10 +99,11 @@ int main(int argc, char *argv[]) {
     auto parsed_args = parseArgs(argc, argv);
     if (parsed_args.fail) {
         return -1;
-    }
-
-    if (parsed_args.help) {
+    } else if (parsed_args.help) {
         print_help();
+        return 0;
+    } else if (parsed_args.version) {
+        std::cout << DPASTE_VERSION << std::endl;
         return 0;
     }
 
