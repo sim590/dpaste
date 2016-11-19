@@ -1,48 +1,38 @@
 /*
- * dpaste -- a simple pastebin over the OpenDHT distributed hash table.
- *
  * Copyright © 2016 Simon Désaulniers
  * Author: Simon Désaulniers <sim.desaulniers@gmail.com>
  *
- * This program is free software: you can redistribute it and/or modify
+ * This file is part of dpaste.
+ *
+ * dpaste is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * dpaste is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-#include <opendht.h>
 #include <iostream>
 #include <string>
-#include <random>
-#include <memory>
-#include <future>
+#include <utility>
 #include <getopt.h>
 
+#include "node.h"
+
 #define DPASTE_VERSION "0.0.1"
-
-/* random */
-std::uniform_int_distribution<dht::Value::Id> udist;
-std::mt19937_64 rand_;
-
-/* DHT */
-const std::string DEFAULT_BOOTSTRAP_NODE = "bootstrap.ring.cx";
-const std::string DEFAULT_BOOTSTRAP_PORT = "4222";
-const std::string CONNECTION_FAILURE_MSG = "err.. Failed to connect to the DHT.";
 
 /* Command line parsing */
 struct ParsedArgs {
     bool fail {false};
     bool help {false};
     bool version {false};
-    dht::InfoHash get_hash {dht::zeroes};
+    std::string get_hash;
 };
 
 static const constexpr struct option long_options[] = {
@@ -64,9 +54,7 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
             pa.version = true;
             break;
         case 'g': {
-            std::stringstream ss;
-            ss << optarg;
-            pa.get_hash = dht::InfoHash(ss.str());
+            pa.get_hash = optarg;
             break;
         }
         default:
@@ -107,21 +95,20 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    dht::DhtRunner node;
-    node.run(0, dht::crypto::generateIdentity(), true);
-    node.bootstrap(DEFAULT_BOOTSTRAP_NODE, DEFAULT_BOOTSTRAP_PORT);
+    dpaste::Node node;
+    node.run();
 
-    if (parsed_args.get_hash != dht::zeroes) {
-        auto values = node.get(parsed_args.get_hash).get();
+    if (not parsed_args.get_hash.empty()) {
+        /* get a pasted blob */
+        auto values = node.get(parsed_args.get_hash);
         if (values.size() == 1) {
-            auto& b = values.front()->data;
+            auto& b = values.front();
             std::string s {b.begin(), b.end()};
             std::cout << s << std::endl;
         } else if (values.size() > 1) {
             std::cout << "Multiple candidates..." << std::endl;
             size_t n {0};
-            for (auto& v : values) {
-                auto& b = v->data;
+            for (auto& b : values) {
                 std::string s {b.begin(), b.end()};
 
                 std::cout << "Candidate #" << n++ << std::endl;
@@ -132,27 +119,14 @@ int main(int argc, char *argv[]) {
             }
         }
     } else {
-        auto mtx = std::make_shared<std::mutex>();
-        auto cv = std::make_shared<std::condition_variable>();
-        std::unique_lock<std::mutex> lk(*mtx);
-
+        /* paste a blob on the DHT */
         char in[dht::MAX_VALUE_SIZE];
         std::cin.read(in, dht::MAX_VALUE_SIZE);
         dht::Blob blob {in, in+std::cin.gcount()-1};
-        auto v = std::make_shared<dht::Value>(dht::ValueType::USER_DATA.id, blob, udist(rand_));
-        auto hash = dht::InfoHash::getRandom();
-
-        node.put(hash, v, [&hash,&mtx,&cv](bool success) {
-            std::unique_lock<std::mutex> lk(*mtx);
-            if (success)
-                std::cout << hash << std::endl;
-            else
-                std::cerr << CONNECTION_FAILURE_MSG << std::endl;
-            cv->notify_all();
-        });
-        cv->wait(lk);
+        std::cout << node.paste(std::move(blob)) << std::endl;
     }
 
-    node.join();
+    node.stop();
     return 0;
 }
+
