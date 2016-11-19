@@ -16,6 +16,10 @@ simply doing:
 $ dpaste -g be1ee067b3bbea12a7d2b6cb8e4838d11fe9c23d
 ```
 
+## Package
+
+Archlinux AUR: https://aur.archlinux.org/packages/dpaste/
+
 ## Pastebin over DHT
 
 A DHT is efficient and requires no infrastructure. In practice, you can always
