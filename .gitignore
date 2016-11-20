@@ -13,3 +13,25 @@
 # vim swap files
 *.swp
 *.swo
+
+# autotools files
+/ac
+Makefile
+Makefile.in
+/aclocal.m4
+/autom4te.cache/
+/config.*
+/configure
+/depcomp
+/install-sh
+/libtool
+/ltmain.sh
+/m4/
+/missing
+/stamp-h?
+.deps/
+.dirstamp
+.libs/
+*.l[ao]
+*~
+*.pc
