@@ -22,6 +22,7 @@
 
 #include <cstdint>
 #include <string>
+#include <memory>
 
 #include <opendht/dhtrunner.h>
 #include <opendht/value.h>

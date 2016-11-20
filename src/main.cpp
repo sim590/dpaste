@@ -23,9 +23,8 @@
 #include <utility>
 #include <getopt.h>
 
+#include "config.h"
 #include "node.h"
-
-#define DPASTE_VERSION "0.0.1"
 
 /* Command line parsing */
 struct ParsedArgs {
@@ -91,7 +90,7 @@ int main(int argc, char *argv[]) {
         print_help();
         return 0;
     } else if (parsed_args.version) {
-        std::cout << DPASTE_VERSION << std::endl;
+        std::cout << VERSION << std::endl;
         return 0;
     }
 

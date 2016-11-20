@@ -18,7 +18,6 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <memory>
 #include <algorithm>
 #include <random>
 #include <future>
