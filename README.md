@@ -16,6 +16,16 @@ simply doing:
 $ dpaste -g be1ee067b3bbea12a7d2b6cb8e4838d11fe9c23d
 ```
 
+## How to build
+
+```sh
+$ ./autogen.sh
+$ ./configure
+$ make
+```
+
+You then can find binaries under `src/` directory.
+
 ## Package
 
 Archlinux AUR: https://aur.archlinux.org/packages/dpaste/
