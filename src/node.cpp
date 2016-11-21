@@ -18,26 +18,24 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "node.h"
+
 #include <algorithm>
 #include <random>
 #include <future>
-
-#include <opendht.h>
-
-#include "node.h"
 
 namespace dpaste {
 
 std::uniform_int_distribution<dht::Value::Id> vid_dist;
 std::mt19937_64 rand_;
 
-std::string Node::paste(dht::Blob&& blob, dht::DoneCallback&& cb) {
+dht::InfoHash Node::paste(dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
 	auto h = dht::InfoHash::getRandom();
-	paste(h, std::forward<dht::Blob>(blob), std::forward<dht::DoneCallback>(cb));
-	return h.toString();
+	paste(h, std::forward<dht::Blob>(blob), std::forward<dht::DoneCallbackSimple>(cb));
+	return h;
 }
 
-void Node::paste(dht::InfoHash hash, dht::Blob&& blob, dht::DoneCallback&& cb) {
+void Node::paste(dht::InfoHash hash, dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
 	auto v = std::make_shared<dht::Value>(std::forward<dht::Blob>(blob));
 	v->id = vid_dist(rand_);
 	v->type = dht::ValueType::USER_DATA.id;
@@ -60,7 +58,7 @@ void Node::paste(dht::InfoHash hash, dht::Blob&& blob, dht::DoneCallback&& cb) {
 	}
 }
 
-void Node::get(std::string hash, PastedCallback&& pcb) {
+void Node::get(dht::InfoHash hash, PastedCallback&& pcb) {
     auto blobs = std::make_shared<std::vector<dht::Blob>>();
     node.get(dht::InfoHash(hash),
         [blobs](std::shared_ptr<dht::Value> value) {
@@ -76,7 +74,7 @@ void Node::get(std::string hash, PastedCallback&& pcb) {
     );
 }
 
-std::vector<dht::Blob> Node::get(std::string hash) {
+std::vector<dht::Blob> Node::get(dht::InfoHash hash) {
     auto values = node.get(dht::InfoHash(hash), dht::Value::AllFilter(), dht::Where {}.userType(DPASTE_USER_TYPE)).get();
     std::vector<dht::Blob> blobs (values.size());
     std::transform(values.begin(), values.end(), blobs.begin(), [] (const decltype(values)::value_type& value) {
