@@ -92,8 +92,8 @@ private:
 
     /* response packet serialization */
     dht::Blob makeErrorResponse();
-    dht::Blob makePasteResponse(dht::InfoHash hash);
-    dht::Blob makeGetResponse(dht::InfoHash hash, std::vector<dht::Blob>&& pasted_content);
+    dht::Blob makePasteResponse(const std::string& code);
+    dht::Blob makeGetResponse(const std::string& code, std::vector<dht::Blob>&& pasted_content);
 
     std::atomic<bool> running {false};
     SockInfo sockInfo;                        /* reception socket info */

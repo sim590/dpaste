@@ -42,20 +42,20 @@ void Server::run(uint16_t port) {
     sockaddr_in sin4;
     std::fill_n((uint8_t*)&sin4, sizeof(sin4), 0);
     sin4.sin_family = AF_INET;
-	sin4.sin_addr.s_addr = INADDR_ANY;
+    sin4.sin_addr.s_addr = INADDR_ANY;
     sin4.sin_port = htons(port);
 
     sockInfo.socket = socket(PF_INET, SOCK_STREAM, 0);
-	fcntl(sockInfo.socket, F_SETFL, O_NONBLOCK);
+    fcntl(sockInfo.socket, F_SETFL, O_NONBLOCK);
     if (sockInfo.socket >= 0) {
         auto rc = bind(sockInfo.socket, (sockaddr*)&sin4, sizeof(sin4));
-		if(rc < 0) {
-			if(errno != EINTR)
-				perror("bind");
-			throw ServerInitException("Failed to bind on socket.");
-		}
-		sockInfo.bound.second = sizeof(sockInfo.bound.first);
-		getsockname(sockInfo.socket, (sockaddr*)&sockInfo.bound.first, &sockInfo.bound.second);
+        if(rc < 0) {
+            if(errno != EINTR)
+                perror("bind");
+            throw ServerInitException("Failed to bind on socket.");
+        }
+        sockInfo.bound.second = sizeof(sockInfo.bound.first);
+        getsockname(sockInfo.socket, (sockaddr*)&sockInfo.bound.first, &sockInfo.bound.second);
     } else
         throw ServerInitException("Cannot create socket.");
 
@@ -66,15 +66,15 @@ void Server::run(uint16_t port) {
     recvThread = std::thread([this] {
         try {
             while (true) {
-				listen(sockInfo.socket, 16);
+                listen(sockInfo.socket, 16);
                 struct timeval tv {
-					/*.tv_sec = */0,
-					/*.tv_usec = */250000
-				};
+                    /*.tv_sec = */0,
+                    /*.tv_usec = */250000
+                };
                 fd_set readfds;
 
                 FD_ZERO(&readfds);
-				FD_SET(sockInfo.socket, &readfds);
+                FD_SET(sockInfo.socket, &readfds);
 
                 int rc = select(sockInfo.socket+1, &readfds, nullptr, nullptr, &tv);
                 if(rc < 0) {
@@ -89,8 +89,8 @@ void Server::run(uint16_t port) {
 
                 if (rc) {
                     auto s = accept(sockInfo.socket, nullptr, nullptr);
-					/* TODO: Remove this debug log */
-					std::cout << "Got a connection request.. Accepting." << std::endl;
+                    /* TODO: Remove this debug log */
+                    std::cout << "Got a connection request.. Accepting." << std::endl;
                     connectionThreads.emplace_back(std::thread(std::bind(&Server::handleConnection, this, s)));
                 }
 
@@ -103,7 +103,7 @@ void Server::run(uint16_t port) {
 }
 
 void Server::stop() {
-	std::cout << "Stopping server..." << std::endl;
+    std::cout << "Stopping server..." << std::endl;
     running = false;
     node.stop();
     for (auto& t : connectionThreads) {
@@ -183,21 +183,20 @@ void Server::handlePacket(dht::Blob&& blob, SendResponseCb&& cb) {
 
     msgpack::unpacked unp = msgpack::unpack((const char*)blob.data(), blob.size());
     msg.msgpack_unpack(unp.get());
+    auto code = msg.code;
     switch (msg.type) {
         case MessageType::Paste: {
-            auto h = msg.hash != dht::zeroes ? msg.hash : dht::InfoHash::getRandom();
-            node.paste(h, std::move(msg.paste_value), [this,h,cb](bool success) {
+            node.paste(code, std::move(msg.paste_value), [this,code,cb](bool success) {
                 if (success)
-                    cb(true, makePasteResponse(h));
+                    cb(true, makePasteResponse(code));
                 else
                     cb(true, makeErrorResponse());
             });
             break;
         }
         case MessageType::Get: {
-            auto& h = msg.hash;
-            node.get(h, [this,h,cb](std::vector<dht::Blob> pasted_content) {
-				cb(true, makeGetResponse(h, std::move(pasted_content)));
+            node.get(code, [this,code,cb](std::vector<dht::Blob> pasted_content) {
+                cb(true, makeGetResponse(code, std::move(pasted_content)));
             });
             break;
         }
@@ -215,23 +214,23 @@ dht::Blob Server::makeErrorResponse() {
     return dht::Blob {buffer.data(), buffer.data()+buffer.size()};
 }
 
-dht::Blob Server::makePasteResponse(dht::InfoHash hash) {
+dht::Blob Server::makePasteResponse(const std::string& code) {
     msgpack::sbuffer buffer;
     msgpack::packer<msgpack::sbuffer> pk(&buffer);
 
     pk.pack_map(1);
     pk.pack(std::string("r")); pk.pack_map(1);
-      pk.pack(std::string("hash")); pk.pack(hash);
+      pk.pack(std::string("code")); pk.pack(code);
 
     return dht::Blob {buffer.data(), buffer.data()+buffer.size()};
 }
-dht::Blob Server::makeGetResponse(dht::InfoHash hash, std::vector<dht::Blob>&& pasted_content) {
+dht::Blob Server::makeGetResponse(const std::string& code, std::vector<dht::Blob>&& pasted_content) {
     msgpack::sbuffer buffer;
     msgpack::packer<msgpack::sbuffer> pk(&buffer);
 
     pk.pack_map(1);
     pk.pack(std::string("r")); pk.pack_map(2);
-      pk.pack(std::string("hash")); pk.pack(hash);
+      pk.pack(std::string("code")); pk.pack(code);
       pk.pack(std::string("pasted")); pk.pack(pasted_content);
 
     return dht::Blob {buffer.data(), buffer.data()+buffer.size()};

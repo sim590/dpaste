@@ -42,7 +42,7 @@ enum MessageType {
 
 struct ParsedMessage {
     MessageType type;
-    dht::InfoHash hash;
+    std::string code;
     dht::Blob paste_value;
 
     void msgpack_unpack(msgpack::object msg);
