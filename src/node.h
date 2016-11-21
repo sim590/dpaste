@@ -26,79 +26,102 @@
 
 #include <opendht/dhtrunner.h>
 #include <opendht/value.h>
+#include <opendht/infohash.h>
+#include <opendht/rng.h>
 #include <opendht/callbacks.h>
 
 namespace dpaste {
 
 class Node {
-	static const constexpr char* DEFAULT_BOOTSTRAP_NODE = "bootstrap.ring.cx";
-	static const constexpr char* DEFAULT_BOOTSTRAP_PORT = "4222";
-	static const constexpr char* CONNECTION_FAILURE_MSG = "err.. Failed to connect to the DHT.";
+    static const constexpr char* DEFAULT_BOOTSTRAP_NODE = "bootstrap.ring.cx";
+    static const constexpr char* DEFAULT_BOOTSTRAP_PORT = "4222";
+    static const constexpr char* CONNECTION_FAILURE_MSG = "err.. Failed to connect to the DHT.";
 
 public:
     using PastedCallback = std::function<void(std::vector<dht::Blob>)>;
 
-	Node () {}
-	virtual ~Node () {}
+    Node();
+    virtual ~Node () {}
 
-	void run(uint16_t port = 0, std::string bootstrap_hostname = DEFAULT_BOOTSTRAP_NODE, std::string bootstrap_port = DEFAULT_BOOTSTRAP_PORT) {
-		if (running)
-			return;
-		node.run(port, dht::crypto::generateIdentity(), true);
-		node.bootstrap(bootstrap_hostname, bootstrap_port);
-		running = true;
-	};
+    void run(uint16_t port = 0, std::string bootstrap_hostname = DEFAULT_BOOTSTRAP_NODE, std::string bootstrap_port = DEFAULT_BOOTSTRAP_PORT) {
+        if (running)
+            return;
+        node.run(port, dht::crypto::generateIdentity(), true);
+        node.bootstrap(bootstrap_hostname, bootstrap_port);
+        running = true;
+    };
 
-    void stop() { node.join(); }
+    void stop() {
+        std::condition_variable cv;
+        std::mutex m;
+        std::atomic_bool done {false};
 
-	/**
-	 * Pastes a blob on the DHT under a random hash.
-	 *
-	 * @param blob  The blob to paste.
-	 * @param cb	A function to execute when paste is done. If empty, the
-	 *				function will block until paste is done.
-	 *
-	 * @return the hash under which the blob is pasted.
-	 */
-	std::string paste(dht::Blob&& blob, dht::DoneCallback&& cb = {});
+        node.shutdown([&]()
+        {
+            std::lock_guard<std::mutex> lk(m);
+            done = true;
+            cv.notify_all();
+        });
 
-	/**
-	 * Pastes a blob on the DHT under a given hash.
-	 *
-	 * @param blob  The blob to paste.
-	 * @param cb	A function to execute when paste is done. If empty, the
-	 *				function will block until done.
-	 *
-	 * @return the hash under which the blob is pasted.
-	 */
-	void paste(std::string hash, dht::Blob&& blob, dht::DoneCallback&& cb = {}) {
-        paste(dht::InfoHash(hash), std::forward<dht::Blob>(blob), std::forward<dht::DoneCallback>(cb));
+        // wait for shutdown
+        std::unique_lock<std::mutex> lk(m);
+        cv.wait(lk, [&](){ return done.load(); });
+
+        node.join();
     }
 
-	/**
-	 * Recover a blob under a given hash.
-	 *
-	 * @param hash  The hash to lookup.
-	 * @param cb	A function to execute when the pasted blob is retrieved.
-	 */
-	void get(std::string hash, PastedCallback&& cb);
+    /**
+     * Pastes a blob on the DHT under a random hash. If no callback, the function
+     * blocks until pasting on the DHT is done.
+     *
+     * @param blob  The blob to paste.
+     * @param cb    A function to execute when paste is done. If empty, the
+     *              function will block until paste is done.
+     *
+     * @return the code under which the blob is pasted.
+     */
+    std::string paste(dht::Blob&& blob, dht::DoneCallbackSimple&& cb = {});
 
-	/**
-	 * Recover blob values under a given hash.
-	 *
-	 * @param hash  The hash to lookup.
+    /**
+     * Pastes a blob on the DHT under a given code. If no callback, the function
+     * blocks until pasting on the DHT is done.
+     *
+     * @param blob  The blob to paste.
+     * @param cb    A function to execute when paste is done. If empty, the
+     *              function will block until done.
+     *
+     * @return the code under which the blob is pasted.
+     */
+    void paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb = {});
+
+    /**
+     * Recover a blob under a given code.
+     *
+     * @param code  The code to lookup.
+     * @param cb    A function to execute when the pasted blob is retrieved.
+     */
+    void get(const std::string& code, PastedCallback&& cb);
+
+    /**
+     * Recover blob values under a given code. This function blocks until the
+     * DHT has satisfied the request.
+     *
+     * @param code  The code to lookup.
      *
      * @return the blobs.
-	 */
-    std::vector<dht::Blob> get(std::string hash);
+     */
+    std::vector<dht::Blob> get(const std::string& code);
 
 private:
     static const constexpr char* DPASTE_USER_TYPE = "dpaste";
 
-	void paste(dht::InfoHash hash, dht::Blob&& blob, dht::DoneCallback&& cb = {});
+    void paste(dht::InfoHash hash, dht::Blob&& blob, dht::DoneCallback&& cb = {});
 
     dht::DhtRunner node;
-	bool running {false};
+    bool running {false};
+
+    std::uniform_int_distribution<uint32_t> codeDist_;
+    std::mt19937_64 rand_;
 };
 
 } /* dpaste */

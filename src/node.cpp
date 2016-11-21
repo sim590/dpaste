@@ -28,56 +28,68 @@
 
 namespace dpaste {
 
-std::uniform_int_distribution<dht::Value::Id> vid_dist;
-std::mt19937_64 rand_;
-
-std::string Node::paste(dht::Blob&& blob, dht::DoneCallback&& cb) {
-	auto h = dht::InfoHash::getRandom();
-	paste(h, std::forward<dht::Blob>(blob), std::forward<dht::DoneCallback>(cb));
-	return h.toString();
+Node::Node()
+{
+    dht::crypto::random_device rdev;
+    std::seed_seq seed {rdev(), rdev()};
+    rand_.seed(seed);
 }
 
-void Node::paste(dht::InfoHash hash, dht::Blob&& blob, dht::DoneCallback&& cb) {
-	auto v = std::make_shared<dht::Value>(std::forward<dht::Blob>(blob));
-	v->id = vid_dist(rand_);
-	v->type = dht::ValueType::USER_DATA.id;
+std::string Node::paste(dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
+    auto pin = codeDist_(rand_);
+    std::stringstream ss;
+    ss << std::hex << pin;
+    auto pin_str = ss.str();
+    std::transform(pin_str.begin(), pin_str.end(), pin_str.begin(), ::toupper);
+
+    paste(pin_str, std::forward<dht::Blob>(blob), std::forward<dht::DoneCallbackSimple>(cb));
+    return pin_str;
+}
+
+void Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
+    auto v = std::make_shared<dht::Value>(std::forward<dht::Blob>(blob));
     v->user_type = DPASTE_USER_TYPE;
 
-	if (cb)
-		node.put(hash, v, cb);
-	else {
-		auto mtx = std::make_shared<std::mutex>();
-		auto cv = std::make_shared<std::condition_variable>();
-		std::unique_lock<std::mutex> lk(*mtx);
-		node.put(hash, v, [&hash,&mtx,&cv] (bool success) {
-			std::unique_lock<std::mutex> lk(*mtx);
-			if (not success)
-				/* TODO: use better logging methods */
-				std::cerr << CONNECTION_FAILURE_MSG << std::endl;
-			cv->notify_all();
-		});
-		cv->wait(lk);
-	}
+    auto hash = dht::InfoHash::get(code);
+
+    if (cb)
+        node.put(hash, v, cb);
+    else {
+        std::mutex mtx;
+        std::condition_variable cv;
+        std::unique_lock<std::mutex> lk(mtx);
+        bool done {false};
+        node.put(hash, v, [&](bool success) {
+            if (not success)
+                std::cerr << CONNECTION_FAILURE_MSG << std::endl;
+            {
+                std::unique_lock<std::mutex> lk(mtx);
+                done = true;
+            }
+            cv.notify_all();
+        });
+        cv.wait(lk, [&](){ return done; });
+    }
 }
 
-void Node::get(std::string hash, PastedCallback&& pcb) {
+void Node::get(const std::string& code, PastedCallback&& pcb) {
     auto blobs = std::make_shared<std::vector<dht::Blob>>();
-    node.get(dht::InfoHash(hash),
+    node.get(dht::InfoHash::get(code),
         [blobs](std::shared_ptr<dht::Value> value) {
             blobs->emplace_back(value->data);
             return true;
         },
-        [pcb,blobs] (bool success) {
+        [pcb,blobs](bool success) {
             if (not success)
-				std::cerr << CONNECTION_FAILURE_MSG << std::endl;
+                std::cerr << CONNECTION_FAILURE_MSG << std::endl;
             else if (pcb)
                 pcb(*blobs);
-        }, dht::Value::AllFilter(), dht::Where {}.userType(std::string(DPASTE_USER_TYPE))
+        }, dht::Value::AllFilter(), dht::Where{}.userType(std::string(DPASTE_USER_TYPE))
     );
 }
 
-std::vector<dht::Blob> Node::get(std::string hash) {
-    auto values = node.get(dht::InfoHash(hash), dht::Value::AllFilter(), dht::Where {}.userType(DPASTE_USER_TYPE)).get();
+std::vector<dht::Blob> Node::get(const std::string& code) {
+    auto values = node.get(dht::InfoHash::get(code), dht::Value::AllFilter(), dht::Where{}.userType(DPASTE_USER_TYPE)).get();
     std::vector<dht::Blob> blobs (values.size());
     std::transform(values.begin(), values.end(), blobs.begin(), [] (const decltype(values)::value_type& value) {
         return value->data;
