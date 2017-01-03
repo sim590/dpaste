@@ -18,7 +18,10 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
+
 #include "node.h"
 
 #include <iostream>
@@ -99,7 +102,7 @@ int main(int argc, char *argv[]) {
 
     if (not parsed_args.get_hash.empty()) {
         /* get a pasted blob */
-        auto values = node.get(dht::InfoHash(parsed_args.get_hash));
+        auto values = node.get(parsed_args.get_hash);
         if (values.size() == 1) {
             auto& b = values.front();
             std::string s {b.begin(), b.end()};
