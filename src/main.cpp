@@ -82,11 +82,15 @@ void print_help() {
 
     std::cout << "SYNOPSIS" << std::endl
               << "    dpaste [-h]" << std::endl
-              << "    dpaste [-g hash]" << std::endl;
+              << "    dpaste [-v]" << std::endl
+              << "    dpaste [-g code]" << std::endl;
 
     std::cout << "OPTIONS" << std::endl;
     std::cout << "    -h|--help" << std::endl
               << "        Prints this help text." << std::endl;
+
+    std::cout << "    -v|--version" << std::endl
+              << "        Prints the program's version number." << std::endl;
 
     std::cout << "    -g|--get {hash}" << std::endl
               << "        Get the pasted file under the hash {hash}." << std::endl;
