@@ -15,6 +15,7 @@ AC_PROG_CXX
 AX_CXX_COMPILE_STDCXX(11,[noext],[mandatory])
 
 PKG_CHECK_MODULES([OpenDHT], [opendht >= 1.2])
+PKG_CHECK_MODULES([GLIBMM], [glibmm-2.4])
 
 AC_CONFIG_FILES([Makefile
                  src/Makefile])

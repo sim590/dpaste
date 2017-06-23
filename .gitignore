@@ -1,6 +1,7 @@
 # Compiled Object files
 *.o
 *.obj
+src/dpaste
 
 # Executables
 *.exe
@@ -13,6 +14,12 @@
 # vim swap files
 *.swp
 *.swo
+
+# Ctags
+tags
+
+# YCM
+.ycm_extra_conf.py*
 
 # autotools files
 /ac
@@ -35,3 +42,6 @@ Makefile.in
 *.l[ao]
 *~
 *.pc
+
+# CMake dir
+build

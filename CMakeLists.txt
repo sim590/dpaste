@@ -10,7 +10,7 @@ find_package(Threads REQUIRED)
 
 add_definitions(-DVERSION="${dpaste_VERSION}")
 
-add_executable (dpaste src/dpaste.cpp src/node.cpp)
+add_executable (dpaste src/dpaste.cpp src/node.cpp src/conf.cpp)
 target_link_libraries (dpaste LINK_PUBLIC opendht )
 
 install (TARGETS dpaste DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)

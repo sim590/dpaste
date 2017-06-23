@@ -30,6 +30,12 @@ You then can find binaries under `src/` directory.
 
 Archlinux AUR: https://aur.archlinux.org/packages/dpaste/
 
+## Dependencies
+
+- [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 1.2.0)
+- [glibmm](https://github.com/GNOME/glibmm) (minimal version: unknown)
+- Getopt (minimal version: unknown)
+
 ## Pastebin over DHT
 
 A DHT is efficient and requires no infrastructure. In practice, you can always

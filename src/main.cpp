@@ -23,6 +23,7 @@
 #endif
 
 #include "node.h"
+#include "conf.h"
 
 #include <iostream>
 #include <string>
@@ -99,6 +100,9 @@ int main(int argc, char *argv[]) {
         std::cout << VERSION << std::endl;
         return 0;
     }
+    auto config_file = dpaste::conf::ConfigurationFile();
+    config_file.load();
+    const auto conf = config_file.getConfiguration();
 
     dpaste::Node node;
     node.run();
