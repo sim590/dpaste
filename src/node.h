@@ -40,7 +40,9 @@ class Node {
 public:
     using PastedCallback = std::function<void(std::vector<dht::Blob>)>;
 
-    Node();
+    static const constexpr char* DPASTE_USER_TYPE = "dpaste";
+
+    Node() {}
     virtual ~Node () {}
 
     void run(uint16_t port = 0, std::string bootstrap_hostname = DEFAULT_BOOTSTRAP_NODE, std::string bootstrap_port = DEFAULT_BOOTSTRAP_PORT) {
@@ -69,18 +71,6 @@ public:
 
         node.join();
     }
-
-    /**
-     * Pastes a blob on the DHT under a random hash. If no callback, the function
-     * blocks until pasting on the DHT is done.
-     *
-     * @param blob  The blob to paste.
-     * @param cb    A function to execute when paste is done. If empty, the
-     *              function will block until paste is done.
-     *
-     * @return the code under which the blob is pasted.
-     */
-    std::string paste(dht::Blob&& blob, dht::DoneCallbackSimple&& cb = {});
 
     /**
      * Pastes a blob on the DHT under a given code. If no callback, the function
@@ -113,9 +103,6 @@ public:
     std::vector<dht::Blob> get(const std::string& code);
 
 private:
-    static const constexpr char* DPASTE_USER_TYPE = "dpaste";
-
-    void paste(dht::InfoHash hash, dht::Blob&& blob, dht::DoneCallback&& cb = {});
 
     dht::DhtRunner node;
     bool running {false};

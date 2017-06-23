@@ -14,6 +14,9 @@ AC_PROG_CXX
 
 AX_CXX_COMPILE_STDCXX(11,[noext],[mandatory])
 
+AC_SUBST(Cpr_CFLAGS, "-I\${abs_top_srcdir}/cpr/include")
+AC_SUBST(Cpr_LDFLAGS, "-L\${abs_top_srcdir}/cpr/build/lib")
+
 PKG_CHECK_MODULES([OpenDHT], [opendht >= 1.2])
 PKG_CHECK_MODULES([GLIBMM], [glibmm-2.4])
 

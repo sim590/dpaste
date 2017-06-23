@@ -28,24 +28,6 @@
 
 namespace dpaste {
 
-Node::Node()
-{
-    dht::crypto::random_device rdev;
-    std::seed_seq seed {rdev(), rdev()};
-    rand_.seed(seed);
-}
-
-std::string Node::paste(dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
-    auto pin = codeDist_(rand_);
-    std::stringstream ss;
-    ss << std::hex << pin;
-    auto pin_str = ss.str();
-    std::transform(pin_str.begin(), pin_str.end(), pin_str.begin(), ::toupper);
-
-    paste(pin_str, std::forward<dht::Blob>(blob), std::forward<dht::DoneCallbackSimple>(cb));
-    return pin_str;
-}
-
 void Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
     auto v = std::make_shared<dht::Value>(std::forward<dht::Blob>(blob));
     v->user_type = DPASTE_USER_TYPE;

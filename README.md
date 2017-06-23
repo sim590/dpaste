@@ -33,7 +33,10 @@ Archlinux AUR: https://aur.archlinux.org/packages/dpaste/
 ## Dependencies
 
 - [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 1.2.0)
+- [json.hpp](https://github.com/nlohmann/json) (minimal version: unknown)
+- [Cpr](https://github.com/whoshuu/cpr) (minimal version: unknown)
 - [glibmm](https://github.com/GNOME/glibmm) (minimal version: unknown)
+- [libb64](http://libb64.sourceforge.net/) (minimal version: unknown)
 - Getopt (minimal version: unknown)
 
 ## Pastebin over DHT

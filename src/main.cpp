@@ -27,18 +27,24 @@
 
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <utility>
 #include <getopt.h>
 
-#include "config.h"
+#include <json.hpp>
+#include <cpr/cpr.h>
+#include <b64/decode.h>
+
 #include "node.h"
+
+using json = nlohmann::json;
 
 /* Command line parsing */
 struct ParsedArgs {
     bool fail {false};
     bool help {false};
     bool version {false};
-    std::string get_hash;
+    std::string code;
 };
 
 static const constexpr struct option long_options[] = {
@@ -60,7 +66,7 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
             pa.version = true;
             break;
         case 'g': {
-            pa.get_hash = optarg;
+            pa.code = optarg;
             break;
         }
         default:
@@ -107,32 +113,48 @@ int main(int argc, char *argv[]) {
     dpaste::Node node;
     node.run();
 
-    if (not parsed_args.get_hash.empty()) {
-        /* get a pasted blob */
-        auto values = node.get(parsed_args.get_hash);
-        if (values.size() == 1) {
+    if (not parsed_args.code.empty()) {
+        auto r = cpr::Get(cpr::Url{conf.at("host")+":"+conf.at("port")+"/"+dht::InfoHash::get(parsed_args.code).toString()},
+                cpr::Parameters{{"user_type", dpaste::Node::DPASTE_USER_TYPE}});
+        /* server gives code 200 when everything is fine. */
+        std::ostringstream oss;
+        if (r.status_code == 200) {
+            std::istringstream iss((*json::parse(r.text).begin())["base64"].dump());
+            base64::decoder d;
+            d.decode(iss, oss);
+        } else {
+            /* get a pasted blob */
+            auto values = node.get(parsed_args.code);
             auto& b = values.front();
-            std::string s {b.begin(), b.end()};
-            std::cout << s << std::endl;
-        } else if (values.size() > 1) {
-            std::cout << "Multiple candidates..." << std::endl;
-            size_t n {0};
-            for (auto& b : values) {
-                std::string s {b.begin(), b.end()};
-
-                std::cout << "Candidate #" << n++ << std::endl;
-                std::istringstream iss {s};
-                for (std::string line; std::getline(iss, line);) {
-                    std::cout << "\t" << line << std::endl;
-                }
-            }
+            oss << std::string(b.begin(), b.end());
         }
+        std::cout << oss.str() << std::endl;
     } else {
         /* paste a blob on the DHT */
         char in[dht::MAX_VALUE_SIZE];
         std::cin.read(in, dht::MAX_VALUE_SIZE);
-        dht::Blob blob {in, in+std::cin.gcount()-1};
-        std::cout << node.paste(std::move(blob)) << std::endl;
+        std::string in_str(in, in+std::cin.gcount()-1);
+
+        std::uniform_int_distribution<uint32_t> codeDist_;
+        std::mt19937_64 rand_;
+        dht::crypto::random_device rdev;
+        std::seed_seq seed {rdev(), rdev()};
+        rand_.seed(seed);
+
+        auto pin = codeDist_(rand_);
+        std::stringstream ss;
+        ss << std::hex << pin;
+        auto pin_str = ss.str();
+        std::transform(pin_str.begin(), pin_str.end(), pin_str.begin(), ::toupper);
+
+        auto r = cpr::Post(
+                cpr::Url{conf.at("host")+":"+conf.at("port")+"/"+dht::InfoHash::get(pin_str).toString()},
+                cpr::Payload{{"data", in_str}, {"user_type", dpaste::Node::DPASTE_USER_TYPE}});
+        if (r.status_code != 200) {
+            dht::Blob blob {in_str.begin(), in_str.end()};
+            node.paste(pin_str, std::move(blob));
+        }
+        std::cout << pin_str << std::endl;
     }
 
     node.stop();
