@@ -7,16 +7,25 @@ A simple pastebin for light values (max 64KB) using OpenDHT distributed hash tab
 Let a file `A.md` you want to share.
 ```sh
 $ cat A.md | dpaste
-be1ee067b3bbea12a7d2b6cb8e4838d11fe9c23d
+74236E62
 ```
 
-You can share this hash. You can retrieve the pasted file within 10 minutes by
-simply doing:
+You can share this PIN. It is used to retrieve the pasted file within 10 minutes
+by simply doing:
 ```sh
-$ dpaste -g be1ee067b3bbea12a7d2b6cb8e4838d11fe9c23d
+$ dpaste -g 74236E62
 ```
 
 ## How to build
+
+First, make sure you have the `cpr` submodule dependency initialized by doing:
+
+```sh
+$ git submodule update --init --recursive
+```
+
+It is itself pulling other submodule dependencies. Afterwards, assuming you have
+the installed the project dependencies prior to this, you can follow with:
 
 ```sh
 $ ./autogen.sh
@@ -54,3 +63,5 @@ not likely to be "down".
 ## Author
 
 - Simon Désaulniers <sim.desaulniers@gmail.com>
+- Adrien Béraud <adrien.beraud@savoirfairelinux.com>
+
