@@ -13,11 +13,4 @@ add_definitions(-DVERSION="${dpaste_VERSION}")
 add_executable (dpaste src/dpaste.cpp src/node.cpp)
 target_link_libraries (dpaste LINK_PUBLIC opendht )
 
-add_executable (pasted
-				src/pasted.cpp
-				src/server.cpp
-				src/node.cpp
-				src/ipc.cpp )
-target_link_libraries (pasted LINK_PUBLIC opendht Threads::Threads)
-
-install (TARGETS dpaste pasted DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install (TARGETS dpaste DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
