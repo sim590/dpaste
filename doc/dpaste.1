@@ -1,0 +1,49 @@
+.TH DPASTE 1 2017-06-26
+
+.SH NAME
+.B dpaste
+- A simple pastebin for light values (max 64KB) using OpenDHT distributed hash
+table.
+
+.SH SYNOPSIS
+.B dpaste [-h]
+
+.B dpaste [-v]
+
+.B dpaste [-g \fIcode\fP]
+
+.SH DESCRIPTION
+
+By default, \fBdpaste\fP will read its standard input for a file to paste on
+OpenDHT.  For fetching a file, you have to provide the \fIcode\fP associated to
+it using the flag \fB-g\fP. Then, \fBdpaste\fP will
+
+.SH OPTIONS
+
+.TP
+\fB-h\fP
+Prints some help.
+
+.TP
+\fB-v\fP
+Shows the version of the program.
+
+.TP
+\fB-g\fP \fIcode\fP
+Specifies the code \fIcode\fP used to recover the file on the DHT.
+
+.SH FILES
+
+.TP
+\fB$XDG_CONFIG_DIR/dpaste.conf\fP
+Main configuration file where. \fBdpaste\fP will look for this file to recover
+information about OpenDHT's HTTP server to use.
+
+.SH AUTHORS
+\(bu
+.\}
+Simon Désaulniers <sim.desaulniers@gmail.com>
+
+\(bu
+.\}
+Adrien Béraud <adrien.beraud@savoirfairelinux.com>
