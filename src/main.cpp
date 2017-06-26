@@ -92,8 +92,8 @@ void print_help() {
     std::cout << "    -v|--version" << std::endl
               << "        Prints the program's version number." << std::endl;
 
-    std::cout << "    -g|--get {hash}" << std::endl
-              << "        Get the pasted file under the hash {hash}." << std::endl;
+    std::cout << "    -g|--get {code}" << std::endl
+              << "        Get the pasted file under the code {code}." << std::endl;
 
     std::cout << std::endl;
     std::cout << "When -g option is ommited, dpaste will read its standard input for a file to paste." << std::endl;
