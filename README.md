@@ -25,7 +25,10 @@ $ git submodule update --init --recursive
 ```
 
 It is itself pulling other submodule dependencies. Afterwards, assuming you have
-the installed the project dependencies prior to this, you can follow with:
+the installed the project dependencies prior to this, you can either use CMake
+or GNU Autotools to build.
+
+### Using GNU Autotools
 
 ```sh
 $ ./autogen.sh
@@ -33,7 +36,17 @@ $ ./configure
 $ make
 ```
 
-You then can find binaries under `src/` directory.
+You'll then find the binary under `src/` directory.
+
+### Using CMake
+
+```sh
+$ mkdir build && cd build
+$ cmake ..
+$ make
+```
+
+You'll then find the binary `dpaste` under `build` directory.
 
 ## Package
 
@@ -56,9 +69,9 @@ not likely to be "down".
 
 ## Roadmap
 
-- Add user configuration file system;
+- ~~Add user configuration file system;~~
 - Support RSA encrypt/sign using user's GPG key;
-- Support running the DHT node as service for executing dpaste operations.
+- ~~Support running the DHT node as service for executing dpaste operations.~~
 
 ## Author
 
