@@ -9,6 +9,9 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 ###########################
 #  cpr lib configuration  #
 ###########################
+set(BUILD_CPR_TESTS OFF CACHE INTERNAL "" FORCE)
+set(CMAKE_USE_OPENSSL OFF CACHE INTERNAL "" FORCE)
+set(BUILD_TESTING OFF CACHE INTERNAL "" FORCE)
 add_subdirectory(cpr)
 
 ###################

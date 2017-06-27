@@ -6,6 +6,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 DOC_FILES = \
 			README.md \
+			config/dpaste.conf \
 			COPYING
 
 EXTRA_DIST = \
