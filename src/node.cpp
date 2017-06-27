@@ -28,6 +28,8 @@
 
 namespace dpaste {
 
+const constexpr char* Node::DPASTE_USER_TYPE;
+
 void Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
     auto v = std::make_shared<dht::Value>(std::forward<dht::Blob>(blob));
     v->user_type = DPASTE_USER_TYPE;
