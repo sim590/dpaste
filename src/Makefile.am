@@ -7,7 +7,7 @@ dpaste_SOURCES = \
 
 dpaste_CPPFLAGS = $(GLIBMM_CFLAGS) @Cpr_CFLAGS@
 dpaste_LDFLAGS  = @Cpr_LDFLAGS@
-dpaste_LDADD  = -lopendht -lgnutls -lnettle $(GLIBMM_LIBS) -lcpr -lcurl -lb64
+dpaste_LDADD    = -lopendht -lgnutls -lnettle $(GLIBMM_LIBS) -lcpr -lcurl -lb64
 
 #########
 #  cpr  #

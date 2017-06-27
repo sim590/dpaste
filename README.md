@@ -28,6 +28,11 @@ It is itself pulling other submodule dependencies. Afterwards, assuming you have
 the installed the project dependencies prior to this, you can either use CMake
 or GNU Autotools to build.
 
+*The build system doesn't try to build with CPR from the system.* It is not
+considered to be officially packaged (see
+https://github.com/whoshuu/cpr/issues/191). Even though, it is packaged on
+ArchLinux for e.g., it is not packaged in a robust way.
+
 ### Using GNU Autotools
 
 ```sh
