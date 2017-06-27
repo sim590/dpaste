@@ -1,4 +1,4 @@
-AC_INIT(dpaste, 0.3.1)
+AC_INIT(dpaste, 0.3.2)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h])
