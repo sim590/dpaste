@@ -18,20 +18,8 @@ $ dpaste -g 74236E62
 
 ## How to build
 
-First, make sure you have the `cpr` submodule dependency initialized by doing:
-
-```sh
-$ git submodule update --init --recursive
-```
-
-It is itself pulling other submodule dependencies. Afterwards, assuming you have
-the installed the project dependencies prior to this, you can either use CMake
-or GNU Autotools to build.
-
-*The build system doesn't try to build with CPR from the system.* It is not
-considered to be officially packaged (see
-https://github.com/whoshuu/cpr/issues/191). Even though, it is packaged on
-ArchLinux for e.g., it is not packaged in a robust way.
+Assuming you have the installed the project dependencies prior to this, you can
+either use CMake or GNU Autotools to build.
 
 ### Using GNU Autotools
 
@@ -61,7 +49,7 @@ Archlinux AUR: https://aur.archlinux.org/packages/dpaste/
 
 - [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 1.2.0)
 - [json.hpp](https://github.com/nlohmann/json) (minimal version: unknown)
-- [Cpr](https://github.com/whoshuu/cpr) (minimal version: unknown)
+- [cURLpp](https://github.com/jpbarrette/curlpp) (minimal version: unknown)
 - [glibmm](https://github.com/GNOME/glibmm) (minimal version: unknown)
 - [libb64](http://libb64.sourceforge.net/) (minimal version: unknown)
 - Getopt (minimal version: unknown)

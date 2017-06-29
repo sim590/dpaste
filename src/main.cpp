@@ -26,19 +26,26 @@
 #include "conf.h"
 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <sstream>
 #include <utility>
 #include <getopt.h>
 
+#include <curlpp/cURLpp.hpp>
+#include <curlpp/Easy.hpp>
+#include <curlpp/Options.hpp>
+#include <curlpp/Exception.hpp>
+#include <curlpp/Infos.hpp>
 #include <json.hpp>
-#include <cpr/cpr.h>
 #include <b64/decode.h>
 
 #include "node.h"
 
 using json = nlohmann::json;
 
+static std::string HTTP_PROTO = "http://";
+static std::ofstream null("/dev/null");
 /* Command line parsing */
 struct ParsedArgs {
     bool fail {false};
@@ -78,12 +85,13 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
 }
 
 void print_help() {
-    std::cout << "dpaste -- A simple pastebin for light values (max 64KB) using OpenDHT distributed hash table." << std::endl << std::endl;
+    std::cout << PACKAGE_NAME << " -- A simple pastebin for light values (max 64KB)"
+                              << " using OpenDHT distributed hash table." << std::endl << std::endl;
 
     std::cout << "SYNOPSIS" << std::endl
-              << "    dpaste [-h]" << std::endl
-              << "    dpaste [-v]" << std::endl
-              << "    dpaste [-g code]" << std::endl;
+              << "    " << PACKAGE_NAME << " [-h]" << std::endl
+              << "    " << PACKAGE_NAME << " [-v]" << std::endl
+              << "    " << PACKAGE_NAME << " [-g code]" << std::endl;
 
     std::cout << "OPTIONS" << std::endl;
     std::cout << "    -h|--help" << std::endl
@@ -96,7 +104,8 @@ void print_help() {
               << "        Get the pasted file under the code {code}." << std::endl;
 
     std::cout << std::endl;
-    std::cout << "When -g option is ommited, dpaste will read its standard input for a file to paste." << std::endl;
+    std::cout << "When -g option is ommited, " << PACKAGE_NAME << " will read its standard input for a file to paste."
+              << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -114,54 +123,96 @@ int main(int argc, char *argv[]) {
     config_file.load();
     const auto conf = config_file.getConfiguration();
 
-    dpaste::Node node;
-    node.run();
+    try {
+        bool curl_success = false;
+        curlpp::Cleanup mycleanup;
+        curlpp::Easy req;
+        long port;
+        {
+            std::istringstream conv(conf.at("port"));
+            conv >> port;
+        }
+        req.setOpt<curlpp::options::Port>(port);
+        if (not parsed_args.code.empty()) {
+            std::stringstream response, oss;
+            req.setOpt<curlpp::options::Url>(HTTP_PROTO+
+                    conf.at("host")+"/"+dht::InfoHash::get(parsed_args.code).toString()
+                    +"?user_type="+dpaste::Node::DPASTE_USER_TYPE
+            );
+            req.setOpt(curlpp::Options::WriteStream(&response));
 
-    if (not parsed_args.code.empty()) {
-        auto r = cpr::Get(cpr::Url{conf.at("host")+":"+conf.at("port")+"/"+dht::InfoHash::get(parsed_args.code).toString()},
-                cpr::Parameters{{"user_type", dpaste::Node::DPASTE_USER_TYPE}});
-        /* server gives code 200 when everything is fine. */
-        std::ostringstream oss;
-        if (r.status_code == 200) {
-            std::istringstream iss((*json::parse(r.text).begin())["base64"].dump());
-            base64::decoder d;
-            d.decode(iss, oss);
+            try {
+                req.perform();
+                /* server gives code 200 when everything is fine. */
+                curl_success = curlpp::Infos::ResponseCode::get(req) == 200 ? true : false;
+            } catch (curlpp::RuntimeError & e) { }
+
+            if (curl_success) {
+                auto pr = json::parse(response.str());
+                if (not pr.empty()) {
+                    std::istringstream iss((*pr.begin())["base64"].dump());
+                    base64::decoder d;
+                    d.decode(iss, oss);
+                }
+            } else {
+                dpaste::Node node;
+                node.run();
+
+                /* get a pasted blob */
+                auto values = node.get(parsed_args.code);
+                if (not values.empty()) {
+                    auto& b = values.front();
+                    oss << std::string(b.begin(), b.end());
+                }
+                node.stop();
+            }
+            if (not oss.str().empty()) {
+                std::cout << oss.str() << std::endl;
+            }
         } else {
-            /* get a pasted blob */
-            auto values = node.get(parsed_args.code);
-            auto& b = values.front();
-            oss << std::string(b.begin(), b.end());
+            /* paste a blob on the DHT */
+            char in[dht::MAX_VALUE_SIZE];
+            std::cin.read(in, dht::MAX_VALUE_SIZE);
+            std::string in_str(in, in+std::cin.gcount()-1);
+
+            std::uniform_int_distribution<uint32_t> codeDist_;
+            std::mt19937_64 rand_;
+            dht::crypto::random_device rdev;
+            std::seed_seq seed {rdev(), rdev()};
+            rand_.seed(seed);
+
+            auto pin = codeDist_(rand_);
+            std::stringstream ss;
+            ss << std::hex << pin;
+            auto pin_str = ss.str();
+            std::transform(pin_str.begin(), pin_str.end(), pin_str.begin(), ::toupper);
+
+            req.setOpt<curlpp::options::Url>(HTTP_PROTO+conf.at("host")+"/"+dht::InfoHash::get(pin_str).toString());
+            req.setOpt(curlpp::Options::WriteStream(&null));
+            {
+                curlpp::Forms form_parts;
+                form_parts.push_back(new curlpp::FormParts::Content("user_type", dpaste::Node::DPASTE_USER_TYPE));
+                form_parts.push_back(new curlpp::FormParts::Content("data", in_str));
+                req.setOpt(new curlpp::options::HttpPost(form_parts));
+            }
+
+            try {
+                req.perform();
+                curl_success = curlpp::Infos::ResponseCode::get(req) == 200 ? true : false;
+            } catch (curlpp::RuntimeError & e) { }
+
+            if (not curl_success) {
+                dpaste::Node node;
+                node.run();
+
+                dht::Blob blob {in_str.begin(), in_str.end()};
+                node.paste(pin_str, std::move(blob));
+                node.stop();
+            }
+            std::cout << pin_str << std::endl;
         }
-        std::cout << oss.str() << std::endl;
-    } else {
-        /* paste a blob on the DHT */
-        char in[dht::MAX_VALUE_SIZE];
-        std::cin.read(in, dht::MAX_VALUE_SIZE);
-        std::string in_str(in, in+std::cin.gcount()-1);
+    } catch (curlpp::LogicError & e) { }
 
-        std::uniform_int_distribution<uint32_t> codeDist_;
-        std::mt19937_64 rand_;
-        dht::crypto::random_device rdev;
-        std::seed_seq seed {rdev(), rdev()};
-        rand_.seed(seed);
-
-        auto pin = codeDist_(rand_);
-        std::stringstream ss;
-        ss << std::hex << pin;
-        auto pin_str = ss.str();
-        std::transform(pin_str.begin(), pin_str.end(), pin_str.begin(), ::toupper);
-
-        auto r = cpr::Post(
-                cpr::Url{conf.at("host")+":"+conf.at("port")+"/"+dht::InfoHash::get(pin_str).toString()},
-                cpr::Payload{{"data", in_str}, {"user_type", dpaste::Node::DPASTE_USER_TYPE}});
-        if (r.status_code != 200) {
-            dht::Blob blob {in_str.begin(), in_str.end()};
-            node.paste(pin_str, std::move(blob));
-        }
-        std::cout << pin_str << std::endl;
-    }
-
-    node.stop();
     return 0;
 }
 
