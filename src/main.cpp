@@ -44,8 +44,10 @@
 
 using json = nlohmann::json;
 
-static std::string HTTP_PROTO = "http://";
+static const constexpr char* DPASTE_CODE_PREFIX = "dpaste:";
+static const constexpr char* HTTP_PROTO = "http://";
 static std::ofstream null("/dev/null");
+
 /* Command line parsing */
 struct ParsedArgs {
     bool fail {false};
@@ -73,7 +75,9 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
             pa.version = true;
             break;
         case 'g': {
-            pa.code = optarg;
+            const auto cs = std::string(optarg);
+            const auto p = cs.find_first_of(DPASTE_CODE_PREFIX);
+            pa.code = cs.substr(p != std::string::npos ? sizeof(DPASTE_CODE_PREFIX)-1 : p);
             break;
         }
         default:
@@ -209,7 +213,7 @@ int main(int argc, char *argv[]) {
                 node.paste(pin_str, std::move(blob));
                 node.stop();
             }
-            std::cout << pin_str << std::endl;
+            std::cout << DPASTE_CODE_PREFIX << pin_str << std::endl;
         }
     } catch (curlpp::LogicError & e) { }
 
