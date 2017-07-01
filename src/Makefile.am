@@ -6,5 +6,5 @@ dpaste_SOURCES = \
 				 conf.cpp
 
 dpaste_CPPFLAGS = $(GLIBMM_CFLAGS) $(CURLPP_CLFAGS)
-dpaste_LDADD    = -lopendht -lgnutls -lnettle $(GLIBMM_LIBS) $(CURLPP_LIBS) -lb64
+dpaste_LDADD    = $(OpenDHT_LIBS) $(GLIBMM_LIBS) $(CURLPP_LIBS) -lb64
 
