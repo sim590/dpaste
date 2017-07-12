@@ -49,7 +49,7 @@ Archlinux AUR: https://aur.archlinux.org/packages/dpaste/
 
 - [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 1.2.0)
 - [json.hpp](https://github.com/nlohmann/json) (minimal version: unknown)
-- [cURLpp](https://github.com/jpbarrette/curlpp) (minimal version: unknown)
+- [cURLpp](https://github.com/jpbarrette/curlpp) (minimal version: 0.8.1)
 - [glibmm](https://github.com/GNOME/glibmm) (minimal version: unknown)
 - [libb64](http://libb64.sourceforge.net/) (minimal version: unknown)
 - Getopt (minimal version: unknown)
