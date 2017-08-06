@@ -45,6 +45,8 @@ You'll then find the binary `dpaste` under `build` directory.
 
 Archlinux AUR: https://aur.archlinux.org/packages/dpaste/
 
+Milis Linux:   mps kur dpaste  (https://github.com/milisarge/malfs-milis/blob/master/talimatname/genel/dpaste/talimat)    
+
 ## Dependencies
 
 - [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 1.2.0)
