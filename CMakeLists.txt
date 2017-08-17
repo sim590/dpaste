@@ -4,7 +4,7 @@ set(dpaste_VERSION 0.3.3)
 add_definitions(-DVERSION="${dpaste_VERSION}")
 add_definitions(-DPACKAGE_NAME="dpaste")
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 ###################
@@ -28,12 +28,14 @@ list(APPEND dpaste_HEADERS
     src/node.h
     src/conf.h
     src/http_client.h
+    src/bin.h
 )
 list(APPEND dpaste_SOURCES
     src/main.cpp
     src/node.cpp
     src/conf.cpp
     src/http_client.cpp
+    src/bin.cpp
 )
 
 #################################

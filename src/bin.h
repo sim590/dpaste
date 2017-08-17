@@ -20,40 +20,45 @@
 
 #pragma once
 
+#include <istream>
 #include <string>
-#include <fstream>
-#include <sstream>
+#include <memory>
 #include <map>
-#include <iostream>
 
-#include <glibmm.h>
+#include "http_client.h"
+#include "node.h"
 
 namespace dpaste {
-namespace conf {
 
-static const constexpr char* CONFIG_FILE_NAME = "dpaste.conf";
-
-class ConfigurationFile final {
+class Bin {
 public:
-    ConfigurationFile(std::string file_path="") : filePath_(file_path),
-        config_({{"host", "127.0.0.1"},
-                {"port", "6509"}})
-    {
-        if (file_path.empty()) {
-            const auto default_file_path = Glib::get_user_config_dir() + '/' + CONFIG_FILE_NAME;
-            filePath_ = default_file_path;
-        }
-    }
-    ~ConfigurationFile() {}
+    Bin (std::string&& code);
+    virtual ~Bin () {}
 
-    void load();
-    const std::map<std::string, std::string>& getConfiguration() { return config_; }
+    /**
+     * Execute the program main functionnality.
+     *
+     * @return return code (0: success, 1 fail)
+     */
+    int execute() {
+        if (not code_.empty())
+            return get();
+        else
+            return paste();
+    }
 
 private:
-    std::string filePath_ {};
-    std::map<std::string, std::string> config_ {};
+    static const constexpr char* DPASTE_CODE_PREFIX = "dpaste:";
+
+    int get();
+    int paste();
+
+    std::string code_ {};
+    std::string buffer_  {};
+    std::unique_ptr<HttpClient> http_client_ {};
+    std::map<std::string, std::string> conf;
+    Node node {};
 };
 
-} /* conf  */
 } /* dpaste */
 

@@ -22,20 +22,11 @@
 #include "config.h"
 #endif
 
-#include "node.h"
-#include "conf.h"
-
-#include <iostream>
 #include <string>
-#include <sstream>
-#include <utility>
 #include <getopt.h>
 
 
-#include "node.h"
-#include "http_client.h"
-
-static const constexpr char* DPASTE_CODE_PREFIX = "dpaste:";
+#include "bin.h"
 
 /* Command line parsing */
 struct ParsedArgs {
@@ -64,9 +55,7 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
             pa.version = true;
             break;
         case 'g': {
-            const auto cs = std::string(optarg);
-            const auto p = cs.find_first_of(DPASTE_CODE_PREFIX);
-            pa.code = cs.substr(p != std::string::npos ? sizeof(DPASTE_CODE_PREFIX)-1 : p);
+            pa.code = std::string(optarg);
             break;
         }
         default:
@@ -112,68 +101,7 @@ int main(int argc, char *argv[]) {
         std::cout << VERSION << std::endl;
         return 0;
     }
-    auto config_file = dpaste::conf::ConfigurationFile();
-    config_file.load();
-    const auto conf = config_file.getConfiguration();
-
-    long port;
-    {
-        std::istringstream conv(conf.at("port"));
-        conv >> port;
-    }
-    dpaste::HttpClient cc {conf.at("host"), port};
-    auto success {false};
-    if (not parsed_args.code.empty()) {
-        /* first try http server */
-        auto data = cc.get(parsed_args.code);
-
-        /* if fail, then perform request from local node */
-        if (data.empty()) {
-            dpaste::Node node;
-            node.run();
-
-            /* get a pasted blob */
-            auto values = node.get(parsed_args.code);
-            if (not values.empty()) {
-                auto& b = values.front();
-                data = std::string(b.begin(), b.end());
-            }
-            node.stop();
-        }
-        if (not data.empty()) {
-            std::cout << data << std::endl;
-        }
-    } else {
-        /* paste a blob on the DHT */
-        char in[dht::MAX_VALUE_SIZE];
-        std::cin.read(in, dht::MAX_VALUE_SIZE);
-        std::string in_str(in, in+std::cin.gcount()-1);
-
-        std::uniform_int_distribution<uint32_t> codeDist_;
-        std::mt19937_64 rand_;
-        dht::crypto::random_device rdev;
-        std::seed_seq seed {rdev(), rdev()};
-        rand_.seed(seed);
-
-        auto code_n = codeDist_(rand_);
-        std::stringstream ss;
-        ss << std::hex << code_n;
-        auto code = ss.str();
-        std::transform(code.begin(), code.end(), code.begin(), ::toupper);
-
-        success = cc.put(code, in_str);
-        if (not success) {
-            dpaste::Node node;
-            node.run();
-
-            dht::Blob blob {in_str.begin(), in_str.end()};
-            success = node.paste(code, std::move(blob));
-            node.stop();
-        }
-        if (success)
-            std::cout << DPASTE_CODE_PREFIX << code << std::endl;
-    }
-
-    return 0;
+    dpaste::Bin dpastebin {std::move(parsed_args.code)};
+    return dpastebin.execute();
 }
 
