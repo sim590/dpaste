@@ -122,6 +122,7 @@ int main(int argc, char *argv[]) {
         conv >> port;
     }
     dpaste::HttpClient cc {conf.at("host"), port};
+    auto success {false};
     if (not parsed_args.code.empty()) {
         /* first try http server */
         auto data = cc.get(parsed_args.code);
@@ -160,15 +161,17 @@ int main(int argc, char *argv[]) {
         auto code = ss.str();
         std::transform(code.begin(), code.end(), code.begin(), ::toupper);
 
-        if (not cc.put(code, in_str)) {
+        success = cc.put(code, in_str);
+        if (not success) {
             dpaste::Node node;
             node.run();
 
             dht::Blob blob {in_str.begin(), in_str.end()};
-            node.paste(code, std::move(blob));
+            success = node.paste(code, std::move(blob));
             node.stop();
         }
-        std::cout << DPASTE_CODE_PREFIX << code << std::endl;
+        if (success)
+            std::cout << DPASTE_CODE_PREFIX << code << std::endl;
     }
 
     return 0;

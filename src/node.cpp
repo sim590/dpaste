@@ -30,22 +30,25 @@ namespace dpaste {
 
 const constexpr char* Node::DPASTE_USER_TYPE;
 
-void Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
+bool Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
     auto v = std::make_shared<dht::Value>(std::forward<dht::Blob>(blob));
     v->user_type = DPASTE_USER_TYPE;
 
     auto hash = dht::InfoHash::get(code);
 
-    if (cb)
-        node.put(hash, v, cb);
-    else {
+    if (cb) {
+        node_.put(hash, v, cb);
+        return true;
+    } else {
         std::mutex mtx;
         std::condition_variable cv;
         std::unique_lock<std::mutex> lk(mtx);
-        bool done {false};
-        node.put(hash, v, [&](bool success) {
+        bool done, success_ {false};
+        node_.put(hash, v, [&](bool success) {
             if (not success)
-                std::cerr << CONNECTION_FAILURE_MSG << std::endl;
+                std::cerr << OPERATION_FAILURE_MSG << std::endl;
+            else
+                success_ = true;
             {
                 std::unique_lock<std::mutex> lk(mtx);
                 done = true;
@@ -53,19 +56,20 @@ void Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSim
             cv.notify_all();
         });
         cv.wait(lk, [&](){ return done; });
+        return success_;
     }
 }
 
 void Node::get(const std::string& code, PastedCallback&& pcb) {
     auto blobs = std::make_shared<std::vector<dht::Blob>>();
-    node.get(dht::InfoHash::get(code),
+    node_.get(dht::InfoHash::get(code),
         [blobs](std::shared_ptr<dht::Value> value) {
             blobs->emplace_back(value->data);
             return true;
         },
         [pcb,blobs](bool success) {
             if (not success)
-                std::cerr << CONNECTION_FAILURE_MSG << std::endl;
+                std::cerr << OPERATION_FAILURE_MSG << std::endl;
             else if (pcb)
                 pcb(*blobs);
         }, dht::Value::AllFilter(), dht::Where{}.userType(std::string(DPASTE_USER_TYPE))
@@ -73,7 +77,7 @@ void Node::get(const std::string& code, PastedCallback&& pcb) {
 }
 
 std::vector<dht::Blob> Node::get(const std::string& code) {
-    auto values = node.get(dht::InfoHash::get(code), dht::Value::AllFilter(), dht::Where{}.userType(DPASTE_USER_TYPE)).get();
+    auto values = node_.get(dht::InfoHash::get(code), dht::Value::AllFilter(), dht::Where{}.userType(DPASTE_USER_TYPE)).get();
     std::vector<dht::Blob> blobs (values.size());
     std::transform(values.begin(), values.end(), blobs.begin(), [] (const decltype(values)::value_type& value) {
         return value->data;

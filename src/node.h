@@ -36,6 +36,7 @@ class Node {
     static const constexpr char* DEFAULT_BOOTSTRAP_NODE = "bootstrap.ring.cx";
     static const constexpr char* DEFAULT_BOOTSTRAP_PORT = "4222";
     static const constexpr char* CONNECTION_FAILURE_MSG = "err.. Failed to connect to the DHT.";
+    static const constexpr char* OPERATION_FAILURE_MSG = "err.. DHT operation failed.";
 
 public:
     using PastedCallback = std::function<void(std::vector<dht::Blob>)>;
@@ -46,11 +47,11 @@ public:
     virtual ~Node () {}
 
     void run(uint16_t port = 0, std::string bootstrap_hostname = DEFAULT_BOOTSTRAP_NODE, std::string bootstrap_port = DEFAULT_BOOTSTRAP_PORT) {
-        if (running)
+        if (running_)
             return;
-        node.run(port, dht::crypto::generateIdentity(), true);
-        node.bootstrap(bootstrap_hostname, bootstrap_port);
-        running = true;
+        node_.run(port, dht::crypto::generateIdentity(), true);
+        node_.bootstrap(bootstrap_hostname, bootstrap_port);
+        running_ = true;
     };
 
     void stop() {
@@ -58,7 +59,7 @@ public:
         std::mutex m;
         std::atomic_bool done {false};
 
-        node.shutdown([&]()
+        node_.shutdown([&]()
         {
             std::lock_guard<std::mutex> lk(m);
             done = true;
@@ -69,7 +70,7 @@ public:
         std::unique_lock<std::mutex> lk(m);
         cv.wait(lk, [&](){ return done.load(); });
 
-        node.join();
+        node_.join();
     }
 
     /**
@@ -80,9 +81,9 @@ public:
      * @param cb    A function to execute when paste is done. If empty, the
      *              function will block until done.
      *
-     * @return the code under which the blob is pasted.
+     * @return true if success, else false.
      */
-    void paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb = {});
+    bool paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb = {});
 
     /**
      * Recover a blob under a given code.
@@ -104,8 +105,8 @@ public:
 
 private:
 
-    dht::DhtRunner node;
-    bool running {false};
+    dht::DhtRunner node_;
+    bool running_ {false};
 
     std::uniform_int_distribution<uint32_t> codeDist_;
     std::mt19937_64 rand_;
