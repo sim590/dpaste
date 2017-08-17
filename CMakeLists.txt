@@ -27,11 +27,13 @@ find_package(Threads REQUIRED)
 list(APPEND dpaste_HEADERS
     src/node.h
     src/conf.h
+    src/http_client.h
 )
 list(APPEND dpaste_SOURCES
     src/main.cpp
     src/node.cpp
     src/conf.cpp
+    src/http_client.cpp
 )
 
 #################################
