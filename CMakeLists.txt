@@ -19,6 +19,7 @@ find_package(opendht 1.2.0 REQUIRED)
 find_package(CURLpp REQUIRED)
 find_package(glibmm REQUIRED)
 find_package(B64 REQUIRED)
+find_package(Gpgme)
 find_package(Threads REQUIRED)
 
 #####################################
@@ -29,6 +30,7 @@ list(APPEND dpaste_HEADERS
     src/conf.h
     src/http_client.h
     src/bin.h
+    src/gpgcrypto.h
 )
 list(APPEND dpaste_SOURCES
     src/main.cpp
@@ -36,14 +38,15 @@ list(APPEND dpaste_SOURCES
     src/conf.cpp
     src/http_client.cpp
     src/bin.cpp
+    src/gpgcrypto.cpp
 )
 
 #################################
 #  dpaste building and linking  #
 #################################
-include_directories(${CURLPP_INCLUDE_DIRS} ${glibmm_INCLUDE_DIRS} ${B64_INCLUDE_DIRS})
+include_directories(${CURLPP_INCLUDE_DIRS} ${glibmm_INCLUDE_DIRS} ${B64_INCLUDE_DIRS} ${GPGME_INCLUDE_DIRS})
 add_executable(dpaste ${dpaste_SOURCES} ${dpaste_HEADERS})
-target_link_libraries(dpaste LINK_PUBLIC opendht ${CURLPP_LIBRARIES} ${glibmm_LIBRARIES} ${B64_LIBRARIES})
+target_link_libraries(dpaste LINK_PUBLIC opendht ${CURLPP_LIBRARIES} ${glibmm_LIBRARIES} ${B64_LIBRARIES} -lgpgmepp ${GPGME_VANILLA_LIBRARIES})
 
 #####################
 #  install targets  #

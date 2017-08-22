@@ -18,6 +18,8 @@ PKG_CHECK_MODULES([OpenDHT], [opendht >= 1.2])
 PKG_CHECK_MODULES([CURLPP], [curlpp])
 PKG_CHECK_MODULES([GLIBMM], [glibmm-2.4])
 
+AM_PATH_GPGME()
+
 AC_CONFIG_FILES([Makefile
                  src/Makefile])
 AC_OUTPUT

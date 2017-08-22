@@ -5,8 +5,9 @@ dpaste_SOURCES = \
 				 node.cpp \
 				 conf.cpp \
 				 http_client.cpp \
-				 bin.cpp
+				 bin.cpp \
+				 gpgcrypto.cpp
 
-dpaste_CPPFLAGS = $(GLIBMM_CFLAGS) $(CURLPP_CLFAGS)
-dpaste_LDADD    = $(OpenDHT_LIBS) $(GLIBMM_LIBS) $(CURLPP_LIBS) -lb64
+dpaste_CPPFLAGS = $(GLIBMM_CFLAGS) $(CURLPP_CLFAGS) $(GPGME_CFLAGS)
+dpaste_LDADD    = $(OpenDHT_LIBS) $(GLIBMM_LIBS) $(CURLPP_LIBS) -lb64 -lgpgmepp $(GPGME_LIBS)
 

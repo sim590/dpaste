@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <string>
+
 namespace dpaste {
 
 class HttpClient {

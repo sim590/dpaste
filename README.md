@@ -50,6 +50,7 @@ Milis Linux:   mps kur dpaste  (https://github.com/milisarge/malfs-milis/blob/ma
 ## Dependencies
 
 - [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 1.2.0)
+- [gpgmepp](https://github.com/KDE/gpgmepp) (minimal version: unknown)
 - [json.hpp](https://github.com/nlohmann/json) (minimal version: unknown)
 - [cURLpp](https://github.com/jpbarrette/curlpp) (minimal version: 0.8.1)
 - [glibmm](https://github.com/GNOME/glibmm) (minimal version: unknown)
