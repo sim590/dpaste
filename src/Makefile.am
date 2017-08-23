@@ -6,6 +6,7 @@ dpaste_SOURCES = \
 				 conf.cpp \
 				 http_client.cpp \
 				 bin.cpp \
+				 log.cpp \
 				 gpgcrypto.cpp
 
 dpaste_CPPFLAGS = $(GLIBMM_CFLAGS) $(CURLPP_CLFAGS) $(GPGME_CFLAGS)

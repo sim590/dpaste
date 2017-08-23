@@ -31,6 +31,7 @@ list(APPEND dpaste_HEADERS
     src/http_client.h
     src/bin.h
     src/gpgcrypto.h
+    src/log.h
 )
 list(APPEND dpaste_SOURCES
     src/main.cpp
@@ -39,6 +40,7 @@ list(APPEND dpaste_SOURCES
     src/http_client.cpp
     src/bin.cpp
     src/gpgcrypto.cpp
+    src/log.cpp
 )
 
 #################################
