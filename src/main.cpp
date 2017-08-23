@@ -18,35 +18,40 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <memory>
+#include <string>
+#include <getopt.h>
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <string>
-#include <getopt.h>
-
-
 #include "bin.h"
+
 
 /* Command line parsing */
 struct ParsedArgs {
     bool fail {false};
     bool help {false};
     bool version {false};
+    bool sign {false};
     std::string code;
+    std::string recipient;
 };
 
 static const constexpr struct option long_options[] = {
    {"help",       no_argument      , nullptr, 'h'},
    {"version",    no_argument      , nullptr, 'v'},
    {"get",        required_argument, nullptr, 'g'},
+   {"encrypt",    required_argument, nullptr, 'e'},
+   {"sign",       required_argument, nullptr, 's'},
    {nullptr,      0                , nullptr,  0}
 };
 
 ParsedArgs parseArgs(int argc, char *argv[]) {
     ParsedArgs pa;
     int opt;
-    while ((opt = getopt_long(argc, argv, "hvg:", long_options, nullptr)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hvg:e:s", long_options, nullptr)) != -1) {
         switch (opt) {
         case 'h':
             pa.help = true;
@@ -54,10 +59,15 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
         case 'v':
             pa.version = true;
             break;
-        case 'g': {
+        case 'g':
             pa.code = std::string(optarg);
             break;
-        }
+        case 'e':
+            pa.recipient = std::string(optarg);
+            break;
+        case 's':
+            pa.sign = true;
+            break;
         default:
             pa.fail = true;
             return pa;
@@ -85,6 +95,12 @@ void print_help() {
     std::cout << "    -g|--get {code}" << std::endl
               << "        Get the pasted file under the code {code}." << std::endl;
 
+    std::cout << "    -e|--encrypt {recipient}" << std::endl
+              << "        GPG encrypt for recipient {recipient}." << std::endl;
+
+    std::cout << "    -s|--sign" << std::endl
+              << "        Sign with configured GPG key." << std::endl;
+
     std::cout << std::endl;
     std::cout << "When -g option is ommited, " << PACKAGE_NAME << " will read its standard input for a file to paste."
               << std::endl;
@@ -93,7 +109,7 @@ void print_help() {
 int main(int argc, char *argv[]) {
     auto parsed_args = parseArgs(argc, argv);
     if (parsed_args.fail) {
-        return -1;
+        return 1;
     } else if (parsed_args.help) {
         print_help();
         return 0;
@@ -101,7 +117,16 @@ int main(int argc, char *argv[]) {
         std::cout << VERSION << std::endl;
         return 0;
     }
-    dpaste::Bin dpastebin {std::move(parsed_args.code)};
+    std::stringstream ss;
+    if (parsed_args.code.empty())
+        ss << std::cin.rdbuf();
+
+    dpaste::Bin dpastebin {
+        std::move(parsed_args.code),
+        std::move(ss),
+        std::move(parsed_args.recipient),
+        parsed_args.sign
+    };
     return dpastebin.execute();
 }
 

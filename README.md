@@ -7,14 +7,17 @@ A simple pastebin for light values (max 64KB) using OpenDHT distributed hash tab
 Let a file `A.md` you want to share.
 ```sh
 $ cat A.md | dpaste
-74236E62
+dpaste:74236E62
 ```
 
-You can share this PIN. It is used to retrieve the pasted file within 10 minutes
-by simply doing:
+You can share this PIN (one can omit the string `dpaste:`). It is used to
+retrieve the pasted file within 10 minutes by simply doing:
 ```sh
-$ dpaste -g 74236E62
+$ dpaste -g dpaste:74236E62
 ```
+
+Use respectively options `-e` and `-s` to encrypt and sign messages using the
+OpenPGP protocol (a working gpg configuration needs to be found on the system).
 
 ## How to build
 
@@ -50,6 +53,7 @@ Milis Linux:   mps kur dpaste  (https://github.com/milisarge/malfs-milis/blob/ma
 ## Dependencies
 
 - [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 1.2.0)
+- [msgpack-c](https://github.com/msgpack/msgpack-c) (minimal version: unknown)
 - [gpgmepp](https://github.com/KDE/gpgmepp) (minimal version: unknown)
 - [json.hpp](https://github.com/nlohmann/json) (minimal version: unknown)
 - [cURLpp](https://github.com/jpbarrette/curlpp) (minimal version: 0.8.1)
@@ -66,7 +70,7 @@ not likely to be "down".
 ## Roadmap
 
 - ~~Add user configuration file system;~~
-- Support RSA encrypt/sign using user's GPG key;
+- ~~Support RSA encrypt/sign using user's GPG key;~~
 - ~~Support running the DHT node as service for executing dpaste operations.~~
 
 ## Author
