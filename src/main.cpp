@@ -124,7 +124,7 @@ void print_help() {
 
     std::cout << "    --self-recipient" << std::endl
               << "        Include self as recipient. Self refers to the key id configured for signing"
-              <<        " (see --sign description)."
+              <<        " (see --sign description). This only takes effect if option \"-e\" is also used."
               << std::endl;
 
     std::cout << std::endl;
