@@ -35,7 +35,7 @@ namespace dpaste {
 
 class Bin {
 public:
-    Bin(std::string&& code, std::stringstream&& data_stream, std::string&& recipient={}, bool sign=false);
+    Bin(std::string&& code, std::stringstream&& data_stream, std::string&& recipient={}, bool sign=false, bool no_decrypt=false);
     virtual ~Bin () {}
 
     /**
@@ -85,6 +85,7 @@ private:
     std::string keyid_;
     std::string recipient_ {};
     bool sign_ {false};
+    bool no_decrypt_ {false};
 
     /* transport */
     std::unique_ptr<HttpClient> http_client_ {};

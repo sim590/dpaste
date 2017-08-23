@@ -43,8 +43,12 @@ findMapValue(msgpack::object& map, const std::string& key) {
     return nullptr;
 }
 
-Bin::Bin(std::string&& code, std::stringstream&& data_stream, std::string&& recipient, bool sign) :
-    code_(code), recipient_(recipient), sign_(sign)
+Bin::Bin(std::string&& code,
+        std::stringstream&& data_stream,
+        std::string&& recipient,
+        bool sign,
+        bool no_decrypt) :
+    code_(code), recipient_(recipient), sign_(sign), no_decrypt_(no_decrypt)
 {
     /* load dpaste config */
     auto config_file = conf::ConfigurationFile();
@@ -75,7 +79,7 @@ Bin::Bin(std::string&& code, std::stringstream&& data_stream, std::string&& reci
 void comment_on_signature(const GpgME::Signature& sig) {
     const auto& s = sig.summary();
     if (s & GpgME::Signature::Valid)
-        DPASTE_MSG("Valid signature from key with ID %s", sig.fingerprint();
+        DPASTE_MSG("Valid signature from key with ID %s", sig.fingerprint());
 }
 
 int Bin::get() {
@@ -99,14 +103,18 @@ int Bin::get() {
         data.clear();
         try {
             if (gpg->isGPGencrypted(p.data)) {
-                DPASTE_MSG("Data is GPG encrypted. Decrypting...");
-                auto res = gpg->decryptAndVerify(p.data);
-                DPASTE_MSG("Success!");
+                DPASTE_MSG("Data is GPG encrypted.");
+                if (not no_decrypt_) {
+                    DPASTE_MSG("Decrypting...");
+                    auto res = gpg->decryptAndVerify(p.data);
+                    DPASTE_MSG("Success!");
 
-                data = std::get<0>(res);
-                auto& verif_res = std::get<2>(res);
-                if (verif_res.numSignatures() > 0)
-                    comment_on_signature(verif_res.signature(0));
+                    data = std::get<0>(res);
+                    auto& verif_res = std::get<2>(res);
+                    if (verif_res.numSignatures() > 0)
+                        comment_on_signature(verif_res.signature(0));
+                } else
+                    data = std::move(p.data);
             } else {
                 data = std::move(p.data);
                 if (not p.signature.empty()) {

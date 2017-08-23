@@ -35,6 +35,7 @@ struct ParsedArgs {
     bool help {false};
     bool version {false};
     bool sign {false};
+    bool no_decrypt {false};
     std::string code;
     std::string recipient;
 };
@@ -44,8 +45,9 @@ static const constexpr struct option long_options[] = {
    {"version",    no_argument      , nullptr, 'v'},
    {"get",        required_argument, nullptr, 'g'},
    {"encrypt",    required_argument, nullptr, 'e'},
-   {"sign",       required_argument, nullptr, 's'},
-   {nullptr,      0                , nullptr,  0}
+   {"sign",       no_argument      , nullptr, 's'},
+   {"no-decrypt", no_argument      , nullptr, 'x'},
+   {nullptr,      0                , nullptr,  0 }
 };
 
 ParsedArgs parseArgs(int argc, char *argv[]) {
@@ -67,6 +69,9 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
             break;
         case 's':
             pa.sign = true;
+            break;
+        case 'x':
+            pa.no_decrypt = true;
             break;
         default:
             pa.fail = true;
@@ -101,6 +106,9 @@ void print_help() {
     std::cout << "    -s|--sign" << std::endl
               << "        Sign with configured GPG key." << std::endl;
 
+    std::cout << "    --no-decrypt" << std::endl
+              << "        Tells dpaste not to decrypt PGP data and rather output it on stdout." << std::endl;
+
     std::cout << std::endl;
     std::cout << "When -g option is ommited, " << PACKAGE_NAME << " will read its standard input for a file to paste."
               << std::endl;
@@ -125,7 +133,8 @@ int main(int argc, char *argv[]) {
         std::move(parsed_args.code),
         std::move(ss),
         std::move(parsed_args.recipient),
-        parsed_args.sign
+        parsed_args.sign,
+        parsed_args.no_decrypt
     };
     return dpastebin.execute();
 }
