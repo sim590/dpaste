@@ -139,10 +139,6 @@ GPGCrypto::verify(const std::vector<uint8_t>& signature, const std::vector<uint8
     GpgME::Data sig {reinterpret_cast<const char*>(signature.data()), signature.size()};
     auto res = ctx->verifyOpaqueSignature(sig, pt);
 
-    /* TODO: pas suffisant pour vérifier... VerificationResult.error() ne détecte pas que la verif a manqué. Par
-     * exemple, il ne détectait pas quand je faisais verifyDetatchedSignature. Je reçevait un mauvais résultat, mais
-     * sans "erreur". */
-    /* res.signature(0) */
     if (res.error())
         throw GpgME::Exception(res.error());
 
