@@ -81,8 +81,7 @@ GPGCrypto::encrypt(std::string recipient, std::vector<uint8_t> plain_text, bool 
     cipher.write("\0", 1);
 
     if (enc_res.error())
-        throw GpgME::Exception(
-                enc_res.error(), "Failed to encrypt with key of ID "+recipient);
+        throw GpgME::Exception(enc_res.error(), "Failed to encrypt with key of ID "+recipient);
 
     if (not sign_res.isNull() and sign_res.error())
         throw GpgME::Exception(
@@ -106,9 +105,9 @@ GPGCrypto::decryptAndVerify(const std::vector<uint8_t>& cipher) {
     auto& sign_res = res.second;
 
     if (dec_res.error())
-        throw GpgME::Exception(dec_res.error(), "Failed to decrypt cipher");
+        throw GpgME::Exception(dec_res.error());
     if (sign_res.error())
-        throw GpgME::Exception(sign_res.error(), "Failed to verify signature");
+        throw GpgME::Exception(sign_res.error());
 
     return std::make_tuple(dataToVector(pt), std::move(res.first), std::move(res.second));
 }
@@ -145,7 +144,7 @@ GPGCrypto::verify(const std::vector<uint8_t>& signature, const std::vector<uint8
      * sans "erreur". */
     /* res.signature(0) */
     if (res.error())
-        throw GpgME::Exception(res.error(), "Failed to verify signature");
+        throw GpgME::Exception(res.error());
 
     return res;
 }

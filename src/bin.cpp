@@ -75,7 +75,7 @@ Bin::Bin(std::string&& code, std::stringstream&& data_stream, std::string&& reci
 void comment_on_signature(const GpgME::Signature& sig) {
     const auto& s = sig.summary();
     if (s & GpgME::Signature::Valid)
-        DPASTE_MSG("Valid signature from key with ID %s", sig.fingerprint());
+        DPASTE_MSG("Valid signature from key with ID %s", sig.fingerprint();
 }
 
 int Bin::get() {
@@ -116,8 +116,8 @@ int Bin::get() {
                         comment_on_signature(res.signature(0));
                 }
             }
-        } catch (GpgME::Exception& e) {
-            DPASTE_MSG("%s", e.message());
+        } catch (const GpgME::Exception& e) {
+            DPASTE_MSG("%s", e.what());
             return -1;
         }
 
@@ -147,7 +147,7 @@ int Bin::paste() {
     Packet p;
     auto to_sign = sign_ and not keyid_.empty();
     if (not recipient_.empty()) {
-        DPASTE_MSG("Encrypting for recipient %s", recipient_);
+        DPASTE_MSG("Encrypting for recipient %s", recipient_.c_str());
         auto res = gpg->encrypt(recipient_, buffer_, to_sign);
         p.data = std::get<0>(res);
     } else {
