@@ -48,7 +48,7 @@ You'll then find the binary `dpaste` under `build` directory.
 
 Archlinux AUR: https://aur.archlinux.org/packages/dpaste/
 
-Milis Linux:   mps kur dpaste  (https://github.com/milisarge/malfs-milis/blob/master/talimatname/genel/dpaste/talimat)    
+Milis Linux:   mps kur dpaste  (https://github.com/milisarge/malfs-milis/blob/master/talimatname/genel/dpaste/talimat)
 
 ## Dependencies
 
@@ -69,6 +69,7 @@ not likely to be "down".
 
 ## Roadmap
 
+- Password based encryption (AES using gnutls);
 - ~~Add user configuration file system;~~
 - ~~Support RSA encrypt/sign using user's GPG key;~~
 - ~~Support running the DHT node as service for executing dpaste operations.~~
