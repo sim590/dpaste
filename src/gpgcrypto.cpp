@@ -50,14 +50,15 @@ GPGCrypto::GPGCrypto(std::string signer) : ctx(GpgME::Context::createForProtocol
         throw GpgME::Exception(err, "Failed to initialize OpenPGP engine");
     ctx = std::unique_ptr<GpgME::Context>(GpgME::Context::createForProtocol(GpgME::Protocol::OpenPGP));
     ctx->setArmor(1);
-    ctx->addSigningKey(getKey(signer));
+    if (not signer.empty())
+        ctx->addSigningKey(getKey(signer));
 }
 
 std::tuple<std::vector<uint8_t>,
     GpgME::EncryptionResult,
     GpgME::SigningResult>
 GPGCrypto::encrypt(std::string recipient, std::vector<uint8_t> plain_text, bool sign) {
-    if (not ctx)
+    if (not ctx or (sign and ctx->signingKeys().empty()))
         return {};
 
     /* Adding final null char delimiter to data */
@@ -115,7 +116,7 @@ GPGCrypto::decryptAndVerify(const std::vector<uint8_t>& cipher) {
 std::pair<std::vector<uint8_t>,
     GpgME::SigningResult>
 GPGCrypto::sign(const std::vector<uint8_t>& plain_text) {
-    if (not ctx)
+    if (not ctx or ctx->signingKeys().empty())
         return {};
 
     GpgME::Data pt {reinterpret_cast<const char*>(plain_text.data()), plain_text.size()};
@@ -139,6 +140,10 @@ GPGCrypto::verify(const std::vector<uint8_t>& signature, const std::vector<uint8
     GpgME::Data sig {reinterpret_cast<const char*>(signature.data()), signature.size()};
     auto res = ctx->verifyOpaqueSignature(sig, pt);
 
+    /* TODO: pas suffisant pour vérifier... VerificationResult.error() ne détecte pas que la verif a manqué. Par
+     * exemple, il ne détectait pas quand je faisais verifyDetatchedSignature. Je reçevait un mauvais résultat, mais
+     * sans "erreur". */
+    /* res.signature(0) */
     if (res.error())
         throw GpgME::Exception(res.error(), "Failed to verify signature");
 
