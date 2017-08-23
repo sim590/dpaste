@@ -36,18 +36,20 @@ struct ParsedArgs {
     bool version {false};
     bool sign {false};
     bool no_decrypt {false};
+    bool self_recipient {false};
     std::string code;
     std::string recipient;
 };
 
 static const constexpr struct option long_options[] = {
-   {"help",       no_argument      , nullptr, 'h'},
-   {"version",    no_argument      , nullptr, 'v'},
-   {"get",        required_argument, nullptr, 'g'},
-   {"encrypt",    required_argument, nullptr, 'e'},
-   {"sign",       no_argument      , nullptr, 's'},
-   {"no-decrypt", no_argument      , nullptr, 'x'},
-   {nullptr,      0                , nullptr,  0 }
+   {"help",           no_argument,       nullptr, 'h'},
+   {"version",        no_argument,       nullptr, 'v'},
+   {"get",            required_argument, nullptr, 'g'},
+   {"encrypt",        required_argument, nullptr, 'e'},
+   {"sign",           no_argument,       nullptr, 's'},
+   {"no-decrypt",     no_argument,       nullptr, 'x'},
+   {"self-recipient", no_argument,       nullptr, 'r'},
+   {nullptr,          0,                 nullptr,  0 }
 };
 
 ParsedArgs parseArgs(int argc, char *argv[]) {
@@ -73,6 +75,9 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
         case 'x':
             pa.no_decrypt = true;
             break;
+        case 'r':
+            pa.self_recipient = true;
+            break;
         default:
             pa.fail = true;
             return pa;
@@ -90,24 +95,37 @@ void print_help() {
               << "    " << PACKAGE_NAME << " [-v]" << std::endl
               << "    " << PACKAGE_NAME << " [-g code]" << std::endl;
 
-    std::cout << "OPTIONS" << std::endl;
-    std::cout << "    -h|--help" << std::endl
-              << "        Prints this help text." << std::endl;
+    std::cout << "OPTIONS"
+              << std::endl;
+    std::cout << "    -h|--help"
+              << std::endl;
+    std::cout << "        Prints this help text."
+              << std::endl;
 
     std::cout << "    -v|--version" << std::endl
-              << "        Prints the program's version number." << std::endl;
+              << "        Prints the program's version number."
+              << std::endl;
 
     std::cout << "    -g|--get {code}" << std::endl
-              << "        Get the pasted file under the code {code}." << std::endl;
+              << "        Get the pasted file under the code {code}."
+              << std::endl;
 
     std::cout << "    -e|--encrypt {recipient}" << std::endl
               << "        GPG encrypt for recipient {recipient}." << std::endl;
 
     std::cout << "    -s|--sign" << std::endl
-              << "        Sign with configured GPG key." << std::endl;
+              << "        Tells wether message should be signed using the user's GPG key. The key has to be configured"
+              <<        " through the configuration file ($XDG_CONFIG_DIR/dpaste.conf, keyword: pgp_key_id)."
+              << std::endl;
 
     std::cout << "    --no-decrypt" << std::endl
-              << "        Tells dpaste not to decrypt PGP data and rather output it on stdout." << std::endl;
+              << "        Tells dpaste not to decrypt PGP data and rather output it on stdout."
+              << std::endl;
+
+    std::cout << "    --self-recipient" << std::endl
+              << "        Include self as recipient. Self refers to the key id configured for signing"
+              <<        " (see --sign description)."
+              << std::endl;
 
     std::cout << std::endl;
     std::cout << "When -g option is ommited, " << PACKAGE_NAME << " will read its standard input for a file to paste."
@@ -134,7 +152,8 @@ int main(int argc, char *argv[]) {
         std::move(ss),
         std::move(parsed_args.recipient),
         parsed_args.sign,
-        parsed_args.no_decrypt
+        parsed_args.no_decrypt,
+        parsed_args.self_recipient
     };
     return dpastebin.execute();
 }

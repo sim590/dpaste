@@ -39,28 +39,27 @@ public:
     GPGCrypto(std::string signer);
     virtual ~GPGCrypto () {}
 
-
     std::tuple<std::vector<uint8_t>,
         GpgME::EncryptionResult,
         GpgME::SigningResult>
-            encrypt(std::string recipient, std::vector<uint8_t> plain_text, bool sign=false);
+            encrypt(const std::vector<std::string>& recipient, std::vector<uint8_t> plain_text, bool sign=false) const;
 
     std::tuple<std::vector<uint8_t>,
         GpgME::DecryptionResult,
         GpgME::VerificationResult>
-            decryptAndVerify(const std::vector<uint8_t>& cipher);
+            decryptAndVerify(const std::vector<uint8_t>& cipher) const;
 
     std::pair<std::vector<uint8_t>,
         GpgME::SigningResult>
-            sign(const std::vector<uint8_t>& plain_text);
+            sign(const std::vector<uint8_t>& plain_text) const;
 
-    GpgME::VerificationResult verify(const std::vector<uint8_t>& signature, const std::vector<uint8_t>& plain_text);
+    GpgME::VerificationResult verify(const std::vector<uint8_t>& signature, const std::vector<uint8_t>& plain_text) const;
 
     bool isGPGencrypted(const std::vector<uint8_t>& d) const;
 
 private:
-    GpgME::Key getKey(const std::string& key_id);
-    GpgME::Error err;
+    GpgME::Key getKey(const std::string& key_id) const;
+
     std::unique_ptr<GpgME::Context> ctx;
 };
 

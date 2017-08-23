@@ -47,8 +47,9 @@ Bin::Bin(std::string&& code,
         std::stringstream&& data_stream,
         std::string&& recipient,
         bool sign,
-        bool no_decrypt) :
-    code_(code), recipient_(recipient), sign_(sign), no_decrypt_(no_decrypt)
+        bool no_decrypt,
+        bool self_recipient) :
+    code_(code), recipients_({recipient}), sign_(sign), no_decrypt_(no_decrypt)
 {
     /* load dpaste config */
     auto config_file = conf::ConfigurationFile();
@@ -63,8 +64,13 @@ Bin::Bin(std::string&& code,
 
     node.run();
     http_client_ = std::make_unique<HttpClient>(conf.at("host"), port);
+
     keyid_ = conf.at("pgp_key_id");
     gpg = std::make_unique<GPGCrypto>(keyid_);
+
+    /* we include self as recipient if there's at least one other recipient */
+    if (not recipients_.empty() and self_recipient and not keyid_.empty())
+        recipients_.emplace_back(keyid_);
 
     if (code_.empty()) { /* operation is put */
         std::array<uint8_t, dht::MAX_VALUE_SIZE> buf;
@@ -138,7 +144,7 @@ int Bin::get() {
     return 0;
 }
 
-int Bin::paste() {
+int Bin::paste() const {
     /* paste a blob on the DHT */
     std::uniform_int_distribution<uint32_t> codeDist_;
     std::mt19937_64 rand_;
@@ -154,9 +160,9 @@ int Bin::paste() {
 
     Packet p;
     auto to_sign = sign_ and not keyid_.empty();
-    if (not recipient_.empty()) {
-        DPASTE_MSG("Encrypting for recipient %s", recipient_.c_str());
-        auto res = gpg->encrypt(recipient_, buffer_, to_sign);
+    if (not recipients_.empty()) {
+        DPASTE_MSG("Encrypting data...");
+        auto res = gpg->encrypt(recipients_, buffer_, to_sign);
         p.data = std::get<0>(res);
     } else {
         if (to_sign) {
@@ -166,6 +172,7 @@ int Bin::paste() {
         p.data.insert(p.data.end(), buffer_.begin(), buffer_.end());
     }
 
+    DPASTE_MSG("Pasting data...");
     auto bin_packet = p.serialize();
     auto success = http_client_->put(code, {bin_packet.begin(), bin_packet.end()});
     if (not success) {
@@ -183,7 +190,7 @@ int Bin::paste() {
         return 1;
 }
 
-std::vector<uint8_t> Bin::Packet::serialize() {
+std::vector<uint8_t> Bin::Packet::serialize() const {
     msgpack::sbuffer buffer;
     msgpack::packer<msgpack::sbuffer> pk(&buffer);
 

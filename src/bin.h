@@ -35,7 +35,12 @@ namespace dpaste {
 
 class Bin {
 public:
-    Bin(std::string&& code, std::stringstream&& data_stream, std::string&& recipient={}, bool sign=false, bool no_decrypt=false);
+    Bin(std::string&& code,
+            std::stringstream&& data_stream,
+            std::string&& recipient={},
+            bool sign=false,
+            bool no_decrypt=false,
+            bool self_recipient=false);
     virtual ~Bin () {}
 
     /**
@@ -59,7 +64,7 @@ private:
         std::vector<uint8_t> data {};
         std::vector<uint8_t> signature {};
 
-        std::vector<uint8_t> serialize();
+        std::vector<uint8_t> serialize() const;
         void deserialize(const std::vector<uint8_t>& pbuffer);
     };
 
@@ -74,16 +79,16 @@ private:
      *
      * @return return code (0: success, 1 fail)
      */
-    int paste();
+    int paste() const;
 
     /* data */
     std::string code_ {};
     std::vector<uint8_t> buffer_ {};
 
     /* crypto */
-    std::unique_ptr<GPGCrypto> gpg;
-    std::string keyid_;
-    std::string recipient_ {};
+    std::unique_ptr<GPGCrypto> gpg {};
+    std::string keyid_ {};
+    std::vector<std::string> recipients_ {};
     bool sign_ {false};
     bool no_decrypt_ {false};
 

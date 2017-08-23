@@ -45,9 +45,11 @@ std::vector<uint8_t> dataToVector(GpgME::Data& d) {
 
 GPGCrypto::GPGCrypto(std::string signer) : ctx(GpgME::Context::createForProtocol(GpgME::Protocol::OpenPGP)) {
     GpgME::initializeLibrary();
-    err = GpgME::checkEngine(GpgME::Protocol::OpenPGP);
+
+    auto err = GpgME::checkEngine(GpgME::Protocol::OpenPGP);
     if (err.code() != GPG_ERR_NO_ERROR)
         throw GpgME::Exception(err, "Failed to initialize OpenPGP engine");
+
     ctx = std::unique_ptr<GpgME::Context>(GpgME::Context::createForProtocol(GpgME::Protocol::OpenPGP));
     ctx->setArmor(1);
     if (not signer.empty())
@@ -57,7 +59,7 @@ GPGCrypto::GPGCrypto(std::string signer) : ctx(GpgME::Context::createForProtocol
 std::tuple<std::vector<uint8_t>,
     GpgME::EncryptionResult,
     GpgME::SigningResult>
-GPGCrypto::encrypt(std::string recipient, std::vector<uint8_t> plain_text, bool sign) {
+GPGCrypto::encrypt(const std::vector<std::string>& recipients, std::vector<uint8_t> plain_text, bool sign) const {
     if (not ctx or (sign and ctx->signingKeys().empty()))
         return {};
 
@@ -66,22 +68,24 @@ GPGCrypto::encrypt(std::string recipient, std::vector<uint8_t> plain_text, bool 
     GpgME::Data pt {reinterpret_cast<const char*>(plain_text.data()), plain_text.size()};
     GpgME::Data cipher {};
 
-    auto k = getKey(recipient);
+    std::vector<GpgME::Key> keys;
+    for (const auto& r : recipients)
+        keys.emplace_back(getKey(r));
     GpgME::EncryptionResult enc_res;
     GpgME::SigningResult sign_res;
     if (sign) {
-        auto res = ctx->signAndEncrypt({k}, pt, cipher, GpgME::Context::EncryptionFlags::None);
+        auto res = ctx->signAndEncrypt(keys, pt, cipher, GpgME::Context::EncryptionFlags::None);
         res.first.swap(sign_res);
         res.second.swap(enc_res);
     } else {
-        auto res = ctx->encrypt({k}, pt, cipher, GpgME::Context::EncryptionFlags::None);
+        auto res = ctx->encrypt(keys, pt, cipher, GpgME::Context::EncryptionFlags::None);
         res.swap(enc_res);
     }
     /* Adding final null char delimiter to cipher */
     cipher.write("\0", 1);
 
     if (enc_res.error())
-        throw GpgME::Exception(enc_res.error(), "Failed to encrypt with key of ID "+recipient);
+        throw GpgME::Exception(enc_res.error(), "Failed to encrypt with key of ID "+recipients.front());
 
     if (not sign_res.isNull() and sign_res.error())
         throw GpgME::Exception(
@@ -94,7 +98,7 @@ GPGCrypto::encrypt(std::string recipient, std::vector<uint8_t> plain_text, bool 
 std::tuple<std::vector<uint8_t>,
     GpgME::DecryptionResult,
     GpgME::VerificationResult>
-GPGCrypto::decryptAndVerify(const std::vector<uint8_t>& cipher) {
+GPGCrypto::decryptAndVerify(const std::vector<uint8_t>& cipher) const {
     if (not ctx)
         return {};
 
@@ -114,7 +118,7 @@ GPGCrypto::decryptAndVerify(const std::vector<uint8_t>& cipher) {
 
 std::pair<std::vector<uint8_t>,
     GpgME::SigningResult>
-GPGCrypto::sign(const std::vector<uint8_t>& plain_text) {
+GPGCrypto::sign(const std::vector<uint8_t>& plain_text) const {
     if (not ctx or ctx->signingKeys().empty())
         return {};
 
@@ -131,7 +135,7 @@ GPGCrypto::sign(const std::vector<uint8_t>& plain_text) {
 }
 
 GpgME::VerificationResult
-GPGCrypto::verify(const std::vector<uint8_t>& signature, const std::vector<uint8_t>& plain_text) {
+GPGCrypto::verify(const std::vector<uint8_t>& signature, const std::vector<uint8_t>& plain_text) const {
     if (not ctx)
         return {};
 
@@ -145,10 +149,11 @@ GPGCrypto::verify(const std::vector<uint8_t>& signature, const std::vector<uint8
     return res;
 }
 
-GpgME::Key GPGCrypto::getKey(const std::string& key_id) {
+GpgME::Key GPGCrypto::getKey(const std::string& key_id) const {
     if (not ctx)
         return {};
 
+    GpgME::Error err;
     auto key = ctx->key(key_id.c_str(), err, false);
     if (err)
         throw GpgME::Exception(err, "Failed to retrieve key with ID "+key_id);

@@ -43,11 +43,17 @@ string that GPG will correctly parse (fingerprint, email, ...).
 .TP
 \fB-s\fP, \fB--sign\fP
 Tells wether message should be signed using the user's GPG key. The key has to
-be configured through the configuration file (\fB$XDG_CONFIG_DIR/dpaste.conf\fP).
+be configured through the configuration file
+(\fB$XDG_CONFIG_DIR/dpaste.conf\fP).
 
 .TP
 \fB--no-decrypt\fP
 Tells dpaste not to decrypt PGP data and rather output it on stdout.
+
+.TP
+\fB--self-recipient\fP
+Include self as recipient. Self refers to the key id configured for signing
+(see --sign description).
 
 .SH RETURN CODE
 The program returns 0 on success. Otherwise 1 is returned.
