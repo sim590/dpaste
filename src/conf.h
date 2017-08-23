@@ -35,9 +35,13 @@ static const constexpr char* CONFIG_FILE_NAME = "dpaste.conf";
 
 class ConfigurationFile final {
 public:
-    ConfigurationFile(std::string file_path="") : filePath_(file_path),
-        config_({{"host", "127.0.0.1"},
-                {"port", "6509"}})
+    ConfigurationFile(std::string file_path="") :
+        filePath_(file_path),
+        config_({
+                    {"host",       "127.0.0.1"},
+                    {"port",       "6509"     },
+                    {"pgp_key_id", ""         }
+                })
     {
         if (file_path.empty()) {
             const auto default_file_path = Glib::get_user_config_dir() + '/' + CONFIG_FILE_NAME;

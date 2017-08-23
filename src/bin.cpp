@@ -20,13 +20,32 @@
 
 #include <sstream>
 #include <iostream>
+#include <array>
+
+#include <msgpack.hpp>
 
 #include "bin.h"
 #include "conf.h"
+#include "log.h"
 
 namespace dpaste {
 
-Bin::Bin(std::string&& code) : code_(code) {
+const constexpr uint8_t Bin::PROTO_VERSION;
+
+msgpack::object*
+findMapValue(msgpack::object& map, const std::string& key) {
+    if (map.type != msgpack::type::MAP) throw msgpack::type_error();
+    for (unsigned i = 0; i < map.via.map.size; i++) {
+        auto& o = map.via.map.ptr[i];
+        if (o.key.type == msgpack::type::STR && o.key.as<std::string>() == key)
+            return &o.val;
+    }
+    return nullptr;
+}
+
+Bin::Bin(std::string&& code, std::stringstream&& data_stream, std::string&& recipient, bool sign) :
+    code_(code), recipient_(recipient), sign_(sign)
+{
     /* load dpaste config */
     auto config_file = conf::ConfigurationFile();
     config_file.load();
@@ -40,36 +59,74 @@ Bin::Bin(std::string&& code) : code_(code) {
 
     node.run();
     http_client_ = std::make_unique<HttpClient>(conf.at("host"), port);
+    keyid_ = conf.at("pgp_key_id");
+    gpg = std::make_unique<GPGCrypto>(keyid_);
 
-    /* operation is put */
-    if (code.empty()) {
-        char buf[dht::MAX_VALUE_SIZE];
-        buffer_.reserve(dht::MAX_VALUE_SIZE);
-        std::cin.read(buf, dht::MAX_VALUE_SIZE);
-        buffer_ = std::string(buf, buf+std::cin.gcount()-1);
+    if (code_.empty()) { /* operation is put */
+        std::array<uint8_t, dht::MAX_VALUE_SIZE> buf;
+        data_stream.read(reinterpret_cast<char*>(buf.data()), dht::MAX_VALUE_SIZE);
+        buffer_.insert(buffer_.end(), buf.begin(), buf.begin()+data_stream.gcount());
     } else { /* otherwise, it's a get */
         const auto p = code_.find_first_of(DPASTE_CODE_PREFIX);
         code_ = code_.substr(p != std::string::npos ? sizeof(DPASTE_CODE_PREFIX)-1 : p);
     }
 }
 
+void comment_on_signature(const GpgME::Signature& sig) {
+    const auto& s = sig.summary();
+    if (s & GpgME::Signature::Valid)
+        DPASTE_MSG("Valid signature from key with ID %s", sig.fingerprint());
+}
+
 int Bin::get() {
     /* first try http server */
-    auto data = http_client_->get(code_);
+    auto data_str = http_client_->get(code_);
+    std::vector<uint8_t> data {data_str.begin(), data_str.end()};
 
     /* if fail, then perform request from local node */
     if (data.empty()) {
 
         /* get a pasted blob */
         auto values = node.get(code_);
-        if (not values.empty()) {
-            auto& b = values.front();
-            data = std::string(b.begin(), b.end());
-        }
+        if (not values.empty())
+            data = values.front();
         node.stop();
     }
-    if (not data.empty())
-        std::cout << data << std::endl;
+
+    if (not data.empty()) {
+        Packet p;
+        p.deserialize(data);
+        data.clear();
+        try {
+            if (gpg->isGPGencrypted(p.data)) {
+                DPASTE_MSG("Data is GPG encrypted. Decrypting...");
+                auto res = gpg->decryptAndVerify(p.data);
+                DPASTE_MSG("Success!");
+
+                data = std::get<0>(res);
+                auto& verif_res = std::get<2>(res);
+                if (verif_res.numSignatures() > 0)
+                    comment_on_signature(verif_res.signature(0));
+            } else {
+                data = std::move(p.data);
+                if (not p.signature.empty()) {
+                    DPASTE_MSG("Data is GPG signed. Verifying...");
+                    auto res = gpg->verify(p.signature, data);
+                    if (res.numSignatures() > 0)
+                        comment_on_signature(res.signature(0));
+                }
+            }
+        } catch (GpgME::Exception& e) {
+            DPASTE_MSG("%s", e.message());
+            return -1;
+        }
+
+        { /* print the buffer from data without copying */
+            std::stringstream ss;
+            ss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&data[0]), data.size());
+            std::cout << ss.rdbuf() << std::endl;
+        }
+    }
     return 0;
 }
 
@@ -87,13 +144,27 @@ int Bin::paste() {
     auto code = ss.str();
     std::transform(code.begin(), code.end(), code.begin(), ::toupper);
 
-    auto success = http_client_->put(code, buffer_);
+    Packet p;
+    auto to_sign = sign_ and not keyid_.empty();
+    if (not recipient_.empty()) {
+        DPASTE_MSG("Encrypting for recipient %s", recipient_);
+        auto res = gpg->encrypt(recipient_, buffer_, to_sign);
+        p.data = std::get<0>(res);
+    } else {
+        if (to_sign) {
+            auto res = gpg->sign(p.data);
+            p.signature = res.first;
+        }
+        p.data.insert(p.data.end(), buffer_.begin(), buffer_.end());
+    }
+
+    auto bin_packet = p.serialize();
+    auto success = http_client_->put(code, {bin_packet.begin(), bin_packet.end()});
     if (not success) {
         Node node;
         node.run();
 
-        dht::Blob blob {buffer_.begin(), buffer_.end()};
-        success = node.paste(code, std::move(blob));
+        success = node.paste(code, std::move(bin_packet));
         node.stop();
     }
 
@@ -104,4 +175,32 @@ int Bin::paste() {
         return 1;
 }
 
+std::vector<uint8_t> Bin::Packet::serialize() {
+    msgpack::sbuffer buffer;
+    msgpack::packer<msgpack::sbuffer> pk(&buffer);
+
+    pk.pack_map(3);
+    pk.pack("v");    pk.pack(PROTO_VERSION);
+    pk.pack("data"); //pk.pack_array(1);
+                     pk.pack(data);
+    pk.pack("signature"); //pk.pack_array(1);
+                          pk.pack(signature);
+    return {buffer.data(), buffer.data()+buffer.size()};
+}
+
+void Bin::Packet::deserialize(const std::vector<uint8_t>& pbuffer) {
+    msgpack::unpacked unpacked = msgpack::unpack(reinterpret_cast<const char*>(pbuffer.data()), pbuffer.size());
+    auto msgpack_object = unpacked.get();
+
+    data.clear();
+    if (auto d = findMapValue(msgpack_object, "data"))
+        d->convert(data);
+    signature.clear();
+    if (auto s = findMapValue(msgpack_object, "signature"))
+        s->convert(signature);
+}
+
 } /* dpaste  */
+
+/* vim:set et sw=4 ts=4 tw=120: */
+

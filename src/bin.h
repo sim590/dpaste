@@ -22,17 +22,20 @@
 
 #include <istream>
 #include <string>
+#include <vector>
+#include <cstdint>
 #include <memory>
 #include <map>
 
-#include "http_client.h"
 #include "node.h"
+#include "http_client.h"
+#include "gpgcrypto.h"
 
 namespace dpaste {
 
 class Bin {
 public:
-    Bin (std::string&& code);
+    Bin(std::string&& code, std::stringstream&& data_stream, std::string&& recipient={}, bool sign=false);
     virtual ~Bin () {}
 
     /**
@@ -48,17 +51,48 @@ public:
     }
 
 private:
+    /* constants */
     static const constexpr char* DPASTE_CODE_PREFIX = "dpaste:";
+    static const constexpr uint8_t PROTO_VERSION = 0;
 
+    struct Packet {
+        std::vector<uint8_t> data {};
+        std::vector<uint8_t> signature {};
+
+        std::vector<uint8_t> serialize();
+        void deserialize(const std::vector<uint8_t>& pbuffer);
+    };
+
+    /**
+     * Execute procedure to get the content stored for a given code.
+     *
+     * @return return code (0: success, 1 fail)
+     */
     int get();
+    /**
+     * Execute procedure to publish content and generate the associated code.
+     *
+     * @return return code (0: success, 1 fail)
+     */
     int paste();
 
+    /* data */
     std::string code_ {};
-    std::string buffer_  {};
+    std::vector<uint8_t> buffer_ {};
+
+    /* crypto */
+    std::unique_ptr<GPGCrypto> gpg;
+    std::string keyid_;
+    std::string recipient_ {};
+    bool sign_ {false};
+
+    /* transport */
     std::unique_ptr<HttpClient> http_client_ {};
     std::map<std::string, std::string> conf;
     Node node {};
 };
 
 } /* dpaste */
+
+/* vim:set et sw=4 ts=4 tw=120: */
 
