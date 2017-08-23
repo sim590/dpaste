@@ -49,7 +49,7 @@ Bin::Bin(std::string&& code,
         bool sign,
         bool no_decrypt,
         bool self_recipient) :
-    code_(code), recipients_({recipient}), sign_(sign), no_decrypt_(no_decrypt)
+    code_(code), sign_(sign), no_decrypt_(no_decrypt)
 {
     /* load dpaste config */
     auto config_file = conf::ConfigurationFile();
@@ -69,8 +69,11 @@ Bin::Bin(std::string&& code,
     gpg = std::make_unique<GPGCrypto>(keyid_);
 
     /* we include self as recipient if there's at least one other recipient */
-    if (not recipients_.empty() and self_recipient and not keyid_.empty())
+
+    if (not recipient.empty() and self_recipient and not keyid_.empty()) {
+        recipients_.emplace_back(std::move(recipient));
         recipients_.emplace_back(keyid_);
+    }
 
     if (code_.empty()) { /* operation is put */
         std::array<uint8_t, dht::MAX_VALUE_SIZE> buf;
