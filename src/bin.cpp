@@ -108,9 +108,8 @@ int Bin::get() {
 
     if (not data.empty()) {
         Packet p;
-        p.deserialize(data);
-        data.clear();
         try {
+            p.deserialize(data);
             if (gpg->isGPGencrypted(p.data)) {
                 DPASTE_MSG("Data is GPG encrypted.");
                 if (not no_decrypt_) {
@@ -118,7 +117,7 @@ int Bin::get() {
                     auto res = gpg->decryptAndVerify(p.data);
                     DPASTE_MSG("Success!");
 
-                    data = std::get<0>(res);
+                    data = std::move(std::get<0>(res));
                     auto& verif_res = std::get<2>(res);
                     if (verif_res.numSignatures() > 0)
                         comment_on_signature(verif_res.signature(0));
@@ -136,7 +135,7 @@ int Bin::get() {
         } catch (const GpgME::Exception& e) {
             DPASTE_MSG("%s", e.what());
             return -1;
-        }
+        } catch (msgpack::type_error& e) { } /* backward compatibility with <=0.3.3 */
 
         { /* print the buffer from data without copying */
             std::stringstream ss;
