@@ -35,29 +35,47 @@ namespace dpaste {
 
 class Bin {
 public:
-    Bin(std::string&& code,
-            std::stringstream&& data_stream,
-            std::string&& recipient={},
-            bool sign=false,
-            bool no_decrypt=false,
-            bool self_recipient=false);
+    Bin();
     virtual ~Bin () {}
 
     /**
-     * Execute the program main functionnality.
+     * Execute procedure to get the content stored for a given code.
+     *
+     * @param code        The PIN for finding data in DHT.
+     * @param no_decrypt  Whether to decrypt the recovered data or not.
      *
      * @return return code (0: success, 1 fail)
      */
-    int execute() {
-        if (not code_.empty())
-            return get();
-        else
-            return paste();
+    int get(std::string&& code, bool no_decrypt=false);
+
+    /**
+     * Execute procedure to publish content and generate the associated code.
+     *
+     * @param data            Data to be pasted.
+     * @param recipient       The recipient of the pasted data.
+     * @param sign            Whether to sign the data or not.
+     * @param self_recipient  Whether including self in recipient list.
+     *
+     * @return return code (0: success, 1 fail)
+     */
+    int paste(std::vector<uint8_t>&& data,
+            std::string&& recipient={},
+            bool sign=false,
+            bool self_recipient=false) const;
+    int paste(std::stringstream&& input_stream,
+            std::string&& recipient={},
+            bool sign=false,
+            bool self_recipient=false) const
+    {
+        return paste(data_from_stream(std::move(input_stream)),
+                std::forward<std::string>(recipient),
+                sign,
+                self_recipient);
     }
 
 private:
     /* constants */
-    static const constexpr char* DPASTE_CODE_PREFIX = "dpaste:";
+    static const constexpr char* DPASTE_URI_PREFIX = "dpaste:";
     static const constexpr uint8_t PROTO_VERSION = 0;
 
     struct Packet {
@@ -69,28 +87,26 @@ private:
     };
 
     /**
-     * Execute procedure to get the content stored for a given code.
+     * Get data from input stream.
      *
-     * @return return code (0: success, 1 fail)
-     */
-    int get();
-    /**
-     * Execute procedure to publish content and generate the associated code.
+     * @param input_stream  The stream to read to get the data.
      *
-     * @return return code (0: success, 1 fail)
+     * @return the data
      */
-    int paste() const;
+    static std::vector<uint8_t> data_from_stream(std::stringstream&& input_stream);
 
-    /* data */
-    std::string code_ {};
-    std::vector<uint8_t> buffer_ {};
+    /**
+     * Parse dpaste uri for code.
+     *
+     * @param uri  The dpaste uri
+     *
+     * @return hexadecimal code from the uri
+     */
+    static std::string code_from_dpaste_uri(const std::string& uri);
 
     /* crypto */
     std::unique_ptr<GPGCrypto> gpg {};
     std::string keyid_ {};
-    std::vector<std::string> recipients_ {};
-    bool sign_ {false};
-    bool no_decrypt_ {false};
 
     /* transport */
     std::unique_ptr<HttpClient> http_client_ {};

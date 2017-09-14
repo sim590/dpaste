@@ -114,18 +114,16 @@ void print_help() {
               << "        GPG encrypt for recipient {recipient}." << std::endl;
 
     std::cout << "    -s|--sign" << std::endl
-              << "        Tells wether message should be signed using the user's GPG key. The key has to be configured"
-              <<        " through the configuration file ($XDG_CONFIG_DIR/dpaste.conf, keyword: pgp_key_id)."
-              << std::endl;
+              << "        Tells wether message should be signed using the user's GPG key. The key has to be configured" << std::endl;
+    std::cout << "        through the configuration file ($XDG_CONFIG_DIR/dpaste.conf, keyword: pgp_key_id)." << std::endl;
 
     std::cout << "    --no-decrypt" << std::endl
               << "        Tells dpaste not to decrypt PGP data and rather output it on stdout."
               << std::endl;
 
     std::cout << "    --self-recipient" << std::endl
-              << "        Include self as recipient. Self refers to the key id configured for signing"
-              <<        " (see --sign description). This only takes effect if option \"-e\" is also used."
-              << std::endl;
+              << "        Include self as recipient. Self refers to the key id configured for signing" << std::endl;
+    std::cout << "        (see --sign description). This only takes effect if option \"-e\" is also used." << std::endl;
 
     std::cout << std::endl;
     std::cout << "When -g option is ommited, " << PACKAGE_NAME << " will read its standard input for a file to paste."
@@ -143,18 +141,20 @@ int main(int argc, char *argv[]) {
         std::cout << VERSION << std::endl;
         return 0;
     }
-    std::stringstream ss;
-    if (parsed_args.code.empty())
-        ss << std::cin.rdbuf();
 
-    dpaste::Bin dpastebin {
-        std::move(parsed_args.code),
-        std::move(ss),
-        std::move(parsed_args.recipient),
-        parsed_args.sign,
-        parsed_args.no_decrypt,
-        parsed_args.self_recipient
-    };
-    return dpastebin.execute();
+    dpaste::Bin dpastebin { };
+    int rc;
+    if (not parsed_args.code.empty())
+        rc = dpastebin.get(std::move(parsed_args.code), parsed_args.no_decrypt);
+    else {
+        std::stringstream ss;
+        ss << std::cin.rdbuf();
+        rc = dpastebin.paste(std::move(ss),
+                std::move(parsed_args.recipient),
+                parsed_args.sign,
+                parsed_args.self_recipient);
+    }
+
+    return rc;
 }
 

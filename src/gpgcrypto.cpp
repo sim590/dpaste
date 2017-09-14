@@ -66,7 +66,7 @@ GPGCrypto::encrypt(const std::vector<std::string>& recipients, std::vector<uint8
     /* Adding final null char delimiter to data */
     plain_text.push_back('\0');
     GpgME::Data pt {reinterpret_cast<const char*>(plain_text.data()), plain_text.size()};
-    GpgME::Data cipher {};
+    GpgME::Data cipher_text {};
 
     std::vector<GpgME::Key> keys;
     for (const auto& r : recipients)
@@ -74,15 +74,15 @@ GPGCrypto::encrypt(const std::vector<std::string>& recipients, std::vector<uint8
     GpgME::EncryptionResult enc_res;
     GpgME::SigningResult sign_res;
     if (sign) {
-        auto res = ctx->signAndEncrypt(keys, pt, cipher, GpgME::Context::EncryptionFlags::None);
+        auto res = ctx->signAndEncrypt(keys, pt, cipher_text, GpgME::Context::EncryptionFlags::None);
         res.first.swap(sign_res);
         res.second.swap(enc_res);
     } else {
-        auto res = ctx->encrypt(keys, pt, cipher, GpgME::Context::EncryptionFlags::None);
+        auto res = ctx->encrypt(keys, pt, cipher_text, GpgME::Context::EncryptionFlags::None);
         res.swap(enc_res);
     }
-    /* Adding final null char delimiter to cipher */
-    cipher.write("\0", 1);
+    /* Adding final null char delimiter to cipher_text */
+    cipher_text.write("\0", 1);
 
     if (enc_res.error())
         throw GpgME::Exception(enc_res.error(), "Failed to encrypt with key of ID "+recipients.front());
@@ -92,19 +92,19 @@ GPGCrypto::encrypt(const std::vector<std::string>& recipients, std::vector<uint8
                 sign_res.error(),
                 "Failed to sign with key of ID "+std::string{ctx->signingKey(0).primaryFingerprint()});
 
-    return std::make_tuple(dataToVector(cipher), std::move(enc_res), std::move(sign_res));
+    return std::make_tuple(dataToVector(cipher_text), std::move(enc_res), std::move(sign_res));
 }
 
 std::tuple<std::vector<uint8_t>,
     GpgME::DecryptionResult,
     GpgME::VerificationResult>
-GPGCrypto::decryptAndVerify(const std::vector<uint8_t>& cipher) const {
+GPGCrypto::decryptAndVerify(const std::vector<uint8_t>& cipher_text) const {
     if (not ctx)
         return {};
 
-    GpgME::Data c {reinterpret_cast<const char*>(cipher.data()), cipher.size()};
+    GpgME::Data ct {reinterpret_cast<const char*>(cipher_text.data()), cipher_text.size()};
     GpgME::Data pt {};
-    auto res = ctx->decryptAndVerify(c, pt);
+    auto res = ctx->decryptAndVerify(ct, pt);
     auto& dec_res = res.first;
     auto& sign_res = res.second;
 

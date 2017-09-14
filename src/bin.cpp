@@ -32,25 +32,7 @@ namespace dpaste {
 
 const constexpr uint8_t Bin::PROTO_VERSION;
 
-msgpack::object*
-findMapValue(msgpack::object& map, const std::string& key) {
-    if (map.type != msgpack::type::MAP) throw msgpack::type_error();
-    for (unsigned i = 0; i < map.via.map.size; i++) {
-        auto& o = map.via.map.ptr[i];
-        if (o.key.type == msgpack::type::STR && o.key.as<std::string>() == key)
-            return &o.val;
-    }
-    return nullptr;
-}
-
-Bin::Bin(std::string&& code,
-        std::stringstream&& data_stream,
-        std::string&& recipient,
-        bool sign,
-        bool no_decrypt,
-        bool self_recipient) :
-    code_(code), sign_(sign), no_decrypt_(no_decrypt)
-{
+Bin::Bin() {
     /* load dpaste config */
     auto config_file = conf::ConfigurationFile();
     config_file.load();
@@ -67,22 +49,6 @@ Bin::Bin(std::string&& code,
 
     keyid_ = conf.at("pgp_key_id");
     gpg = std::make_unique<GPGCrypto>(keyid_);
-
-    /* we include self as recipient if there's at least one other recipient */
-
-    if (not recipient.empty() and self_recipient and not keyid_.empty()) {
-        recipients_.emplace_back(std::move(recipient));
-        recipients_.emplace_back(keyid_);
-    }
-
-    if (code_.empty()) { /* operation is put */
-        std::array<uint8_t, dht::MAX_VALUE_SIZE> buf;
-        data_stream.read(reinterpret_cast<char*>(buf.data()), dht::MAX_VALUE_SIZE);
-        buffer_.insert(buffer_.end(), buf.begin(), buf.begin()+data_stream.gcount());
-    } else { /* otherwise, it's a get */
-        const auto p = code_.find_first_of(DPASTE_CODE_PREFIX);
-        code_ = code_.substr(p != std::string::npos ? sizeof(DPASTE_CODE_PREFIX)-1 : p);
-    }
 }
 
 void comment_on_signature(const GpgME::Signature& sig) {
@@ -91,16 +57,22 @@ void comment_on_signature(const GpgME::Signature& sig) {
         DPASTE_MSG("Valid signature from key with ID %s", sig.fingerprint());
 }
 
-int Bin::get() {
+std::string Bin::code_from_dpaste_uri(const std::string& uri) {
+    const auto p = uri.find_first_of(DPASTE_URI_PREFIX);
+    return uri.substr(p != std::string::npos ? sizeof(DPASTE_URI_PREFIX)-1 : p);
+}
+
+int Bin::get(std::string&& code, bool no_decrypt) {
+    code = code_from_dpaste_uri(code);
+
     /* first try http server */
-    auto data_str = http_client_->get(code_);
+    auto data_str = http_client_->get(code);
     std::vector<uint8_t> data {data_str.begin(), data_str.end()};
 
     /* if fail, then perform request from local node */
     if (data.empty()) {
-
         /* get a pasted blob */
-        auto values = node.get(code_);
+        auto values = node.get(code);
         if (not values.empty())
             data = values.front();
         node.stop();
@@ -112,7 +84,7 @@ int Bin::get() {
             p.deserialize(data);
             if (gpg->isGPGencrypted(p.data)) {
                 DPASTE_MSG("Data is GPG encrypted.");
-                if (not no_decrypt_) {
+                if (not no_decrypt) {
                     DPASTE_MSG("Decrypting...");
                     auto res = gpg->decryptAndVerify(p.data);
                     DPASTE_MSG("Success!");
@@ -146,7 +118,28 @@ int Bin::get() {
     return 0;
 }
 
-int Bin::paste() const {
+std::vector<uint8_t> Bin::data_from_stream(std::stringstream&& input_stream) {
+    std::array<uint8_t, dht::MAX_VALUE_SIZE> buf;
+    input_stream.read(reinterpret_cast<char*>(buf.data()), dht::MAX_VALUE_SIZE);
+
+    std::vector<uint8_t> buffer;
+    buffer.insert(buffer.end(), buf.begin(), buf.begin()+input_stream.gcount());
+    return buffer;
+}
+
+int Bin::paste(std::vector<uint8_t>&& data,
+        std::string&& recipient,
+        bool sign,
+        bool self_recipient) const
+{
+    /* we include self as recipient if there's at least one other recipient */
+    std::vector<std::string> recipients {};
+    if (not recipient.empty()) {
+        recipients.emplace_back(std::move(recipient));
+        if (self_recipient and not keyid_.empty())
+            recipients.emplace_back(keyid_);
+    }
+
     /* paste a blob on the DHT */
     std::uniform_int_distribution<uint32_t> codeDist_;
     std::mt19937_64 rand_;
@@ -161,17 +154,18 @@ int Bin::paste() const {
     std::transform(code.begin(), code.end(), code.begin(), ::toupper);
 
     Packet p;
-    auto to_sign = sign_ and not keyid_.empty();
-    if (not recipients_.empty()) {
-        DPASTE_MSG("Encrypting data...");
-        auto res = gpg->encrypt(recipients_, buffer_, to_sign);
+    auto to_sign = sign and not keyid_.empty();
+    if (not recipients.empty()) {
+        DPASTE_MSG("Encrypting %sdata...", to_sign ? "and signing " : "");
+        auto res = gpg->encrypt(recipients, data, to_sign);
         p.data = std::get<0>(res);
     } else {
         if (to_sign) {
+            DPASTE_MSG("Signing data...");
             auto res = gpg->sign(p.data);
             p.signature = res.first;
         }
-        p.data.insert(p.data.end(), buffer_.begin(), buffer_.end());
+        p.data.insert(p.data.end(), data.begin(), data.end());
     }
 
     DPASTE_MSG("Pasting data...");
@@ -186,10 +180,21 @@ int Bin::paste() const {
     }
 
     if (success) {
-        std::cout << DPASTE_CODE_PREFIX << code << std::endl;
+        std::cout << DPASTE_URI_PREFIX << code << std::endl;
         return 0;
     } else
         return 1;
+}
+
+msgpack::object*
+findMapValue(msgpack::object& map, const std::string& key) {
+    if (map.type != msgpack::type::MAP) throw msgpack::type_error();
+    for (unsigned i = 0; i < map.via.map.size; i++) {
+        auto& o = map.via.map.ptr[i];
+        if (o.key.type == msgpack::type::STR && o.key.as<std::string>() == key)
+            return &o.val;
+    }
+    return nullptr;
 }
 
 std::vector<uint8_t> Bin::Packet::serialize() const {
@@ -198,10 +203,8 @@ std::vector<uint8_t> Bin::Packet::serialize() const {
 
     pk.pack_map(3);
     pk.pack("v");    pk.pack(PROTO_VERSION);
-    pk.pack("data"); //pk.pack_array(1);
-                     pk.pack(data);
-    pk.pack("signature"); //pk.pack_array(1);
-                          pk.pack(signature);
+    pk.pack("data"); pk.pack(data);
+    pk.pack("signature"); pk.pack(signature);
     return {buffer.data(), buffer.data()+buffer.size()};
 }
 
