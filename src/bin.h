@@ -30,7 +30,7 @@
 #include "config.h"
 #include "node.h"
 #include "http_client.h"
-#include "gpgcrypto.h"
+#include "cipher.h"
 
 namespace dpaste {
 #ifdef DPASTE_TEST
@@ -61,26 +61,15 @@ public:
     /**
      * Execute procedure to publish content and generate the associated code.
      *
-     * @param data            Data to be pasted.
-     * @param recipient       The recipient of the pasted data.
-     * @param sign            Whether to sign the data or not.
-     * @param self_recipient  Whether including self in recipient list.
+     * @param data    Data to be pasted.
+     * @param params  Cryptographic parameters.
      *
      * @return the code (key) to the pasted data. If empty, then process failed.
      */
-    std::string paste(std::vector<uint8_t>&& data,
-            std::string&& recipient={},
-            bool sign=false,
-            bool self_recipient=false) const;
-    std::string paste(std::stringstream&& input_stream,
-            std::string&& recipient={},
-            bool sign=false,
-            bool self_recipient=false) const
-    {
+    std::string paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params) const;
+    std::string paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params) const {
         return paste(data_from_stream(std::move(input_stream)),
-                std::forward<std::string>(recipient),
-                sign,
-                self_recipient);
+                std::forward<std::unique_ptr<crypto::Parameters>>(params));
     }
 
 private:
@@ -116,13 +105,10 @@ private:
 
     static std::string random_pin();
 
-    /* crypto */
-    std::unique_ptr<GPGCrypto> gpg {};
-    std::string keyid_ {};
+    std::map<std::string, std::string> conf_;
 
     /* transport */
     std::unique_ptr<HttpClient> http_client_ {};
-    std::map<std::string, std::string> conf;
     Node node {};
 };
 

@@ -23,7 +23,8 @@ OpenPGP protocol (a working gpg configuration needs to be found on the system).
 ## How to build
 
 Assuming you have the installed the project dependencies prior to this, you can
-either use CMake or GNU Autotools to build.
+either use CMake or GNU Autotools to build. A `c++17` compliant compiler is
+required to compile the program.
 
 ### Using GNU Autotools
 

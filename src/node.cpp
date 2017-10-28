@@ -77,7 +77,9 @@ void Node::get(const std::string& code, PastedCallback&& pcb) {
 }
 
 std::vector<dht::Blob> Node::get(const std::string& code) {
-    auto values = node_.get(dht::InfoHash::get(code), dht::Value::AllFilter(), dht::Where{}.userType(DPASTE_USER_TYPE)).get();
+    auto values = node_.get(dht::InfoHash::get(code),
+            dht::Value::AllFilter(),
+            dht::Where{}.userType(DPASTE_USER_TYPE)).get();
     std::vector<dht::Blob> blobs (values.size());
     std::transform(values.begin(), values.end(), blobs.begin(), [] (const decltype(values)::value_type& value) {
         return value->data;

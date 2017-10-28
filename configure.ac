@@ -13,9 +13,9 @@ AS_IF([test "x$enable_debug" = "xyes"],
 AC_PROG_CXX
 AC_PROG_RANLIB
 
-AX_CXX_COMPILE_STDCXX(14,[noext],[mandatory])
+AX_CXX_COMPILE_STDCXX(17,[noext],[mandatory])
 # explicit c++14 in flags so that compile_commands.json yields it.
-CXXFLAGS="${CXXFLAGS} -std=c++14"
+CXXFLAGS="${CXXFLAGS} -std=c++17"
 
 PKG_CHECK_MODULES([OpenDHT], [opendht >= 1.2])
 PKG_CHECK_MODULES([CURLPP], [curlpp])
