@@ -30,6 +30,7 @@
 #include "conf.h"
 #include "log.h"
 #include "gpgcrypto.h"
+#include "aescrypto.h"
 
 namespace dpaste {
 
@@ -59,15 +60,18 @@ std::string Bin::code_from_dpaste_uri(const std::string& uri) {
 
 std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
     code = code_from_dpaste_uri(code);
+    const auto offset = crypto::AES::CODE_PASS_OFFSET*2;
+    const auto lcode = code.substr(0, offset);
+    const auto pwd = code.substr(offset);
 
     /* first try http server */
-    auto data_str = http_client_->get(code);
+    auto data_str = http_client_->get(lcode);
     std::vector<uint8_t> data {data_str.begin(), data_str.end()};
 
     /* if fail, then perform request from local node */
     if (data.empty()) {
         /* get a pasted blob */
-        auto values = node.get(code);
+        auto values = node.get(lcode);
         if (not values.empty())
             data = values.front();
         node.stop();
@@ -77,10 +81,15 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
         Packet p;
         try {
             p.deserialize(data);
-            auto cipher = crypto::Cipher::get(p.data);
-            if (cipher and not no_decrypt)
-                data = cipher->processCipherText(p.data, {});
-            else
+            auto cipher = crypto::Cipher::get(p.data, code);
+            if (cipher and not no_decrypt) {
+                std::shared_ptr<crypto::Parameters> params;
+                if (auto aes = std::dynamic_pointer_cast<crypto::AES>(cipher)) {
+                    params = std::make_shared<crypto::Parameters>();
+                    params->emplace<crypto::AESParameters>(pwd);
+                }
+                data = cipher->processCipherText(p.data, std::move(params));
+            } else
                 data = std::move(p.data);
             if (not (cipher or p.signature.empty())) {
                 auto gc = std::dynamic_pointer_cast<crypto::GPG>(crypto::Cipher::get(crypto::Cipher::Scheme::GPG, {}));
@@ -91,6 +100,9 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
             }
 
         } catch (const GpgME::Exception& e) {
+            DPASTE_MSG("%s", e.what());
+            return {false, ""};
+        } catch (const dht::crypto::DecryptError& e) {
             DPASTE_MSG("%s", e.what());
             return {false, ""};
         } catch (msgpack::type_error& e) { } /* backward compatibility with <=0.3.3 */
@@ -128,6 +140,7 @@ std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Para
 {
     /* paste a blob on the DHT */
     auto code = random_pin();
+    std::string pwd = "";
 
     /* paste a blob on the DHT */
     Packet p;
@@ -142,6 +155,10 @@ std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Para
             scheme = gp->scheme;
             init_params = std::make_shared<crypto::Parameters>();
             init_params->emplace<crypto::GPGParameters>(keyid);
+        } else if (auto aesp = std::get_if<crypto::AESParameters>(sparams.get())) {
+            scheme = aesp->scheme;
+            pwd = random_pin();
+            aesp->password = pwd;
         }
         auto cipher = crypto::Cipher::get(scheme, std::move(init_params));
 
@@ -171,7 +188,7 @@ std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Para
         node.stop();
     }
 
-    return success ? DPASTE_URI_PREFIX+code : "";
+    return success ? DPASTE_URI_PREFIX+code+pwd  : "";
 }
 
 msgpack::object*

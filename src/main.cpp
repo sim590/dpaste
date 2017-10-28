@@ -40,6 +40,7 @@ struct ParsedArgs {
     bool help {false};
     bool version {false};
     bool sign {false};
+    bool aes_encrypt {false};
     bool gpg_encrypt {false};
     bool no_decrypt {false};
     bool self_recipient {false};
@@ -51,6 +52,7 @@ static const constexpr struct option long_options[] = {
    {"help",           no_argument,       nullptr, 'h'},
    {"version",        no_argument,       nullptr, 'v'},
    {"get",            required_argument, nullptr, 'g'},
+   {"aes-encrypt",    no_argument,       nullptr, '3'},
    {"gpg-encrypt",    no_argument,       nullptr, '4'},
    {"recipients",     required_argument, nullptr, 'r'},
    {"sign",           no_argument,       nullptr, 's'},
@@ -72,6 +74,9 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
             break;
         case 'g':
             pa.code = std::string(optarg);
+            break;
+        case '3':
+            pa.aes_encrypt = true;
             break;
         case '4':
             pa.gpg_encrypt = true;
@@ -120,6 +125,9 @@ void print_help() {
               << "        Get the pasted file under the code {code}."
               << std::endl;
 
+    std::cout << "    --aes-encrypt" << std::endl
+              << "        Use AES scheme for encryption. A prompt for password will appear." << std::endl;
+
     std::cout << "    --gpg-encrypt" << std::endl
               << "        Use GPG scheme for encryption/signing." << std::endl;
 
@@ -145,18 +153,18 @@ void print_help() {
 }
 
 std::unique_ptr<dpaste::crypto::Parameters> params_from_args(const ParsedArgs& pa) {
-    if (pa.gpg_encrypt) {
-        auto params = std::make_unique<dpaste::crypto::Parameters>();
+    auto params = std::make_unique<dpaste::crypto::Parameters>();
+    if (pa.aes_encrypt) {
+        params->emplace<dpaste::crypto::AESParameters>();
+    } else if (pa.gpg_encrypt) {
         params->emplace<dpaste::crypto::GPGParameters>(pa.recipients, pa.self_recipient, pa.sign);
-        return params;
     } else if (pa.sign) {
-        auto params = std::make_unique<dpaste::crypto::Parameters>();
         params->emplace<dpaste::crypto::GPGParameters>();
         auto& p = std::get<dpaste::crypto::GPGParameters>(*params);
         p.sign = pa.sign;
-        return params;
-    }
-    return {};
+    } else
+        return {};
+    return params;
 }
 
 int main(int argc, char *argv[]) {

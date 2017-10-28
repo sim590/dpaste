@@ -8,7 +8,8 @@ libdpaste_a_SOURCES = \
 					  bin.cpp \
 					  log.cpp \
 					  cipher.cpp \
-					  gpgcrypto.cpp
+					  gpgcrypto.cpp \
+					  aescrypto.cpp
 dpaste_SOURCES = main.cpp
 
 # Variables defined in toplevel Makefile. Thus, `make` cannot be called from

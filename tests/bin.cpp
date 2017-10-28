@@ -47,14 +47,27 @@ public:
 };
 
 TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
+    using pbt = PirateBinTester;
     std::vector<uint8_t> data = {0, 1, 2, 3, 4};
     Bin bin {};
+    crypto::Cipher::init();
     SECTION ( "pasting data {0,1,2,3,4}" ) {
-        using pbt = PirateBinTester;
         auto code = bin.paste(std::vector<uint8_t> {data}, {});
         REQUIRE ( code.size() == pbt::LOCATION_CODE_LEN+sizeof(pbt::DPASTE_URI_PREFIX)-1 );
 
         SECTION ( "getting pasted blob back from the DHT" ) {
+            auto rd = bin.get(std::move(code)).second;
+            std::vector<uint8_t> rdv {rd.begin(), rd.end()};
+            REQUIRE ( data == rdv );
+        }
+    }
+    SECTION ( "pasting AES encrypted {0,1,2,3,4}" ) {
+        auto p = std::make_unique<dpaste::crypto::Parameters>();
+        p->emplace<crypto::AESParameters>();
+        auto code = bin.paste(std::vector<uint8_t> {data}, std::move(p));
+        REQUIRE ( code.size() == 2*pbt::LOCATION_CODE_LEN+sizeof(pbt::DPASTE_URI_PREFIX)-1 );
+
+        SECTION ( "getting pasted AES encrypted blob back from the DHT" ) {
             auto rd = bin.get(std::move(code)).second;
             std::vector<uint8_t> rdv {rd.begin(), rd.end()};
             REQUIRE ( data == rdv );

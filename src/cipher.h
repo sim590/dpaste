@@ -31,11 +31,12 @@ namespace dpaste {
 namespace crypto {
 
 struct GPGParameters;
-using Parameters = std::variant<GPGParameters>;
+struct AESParameters;
+using Parameters = std::variant<GPGParameters, AESParameters>;
 
 class Cipher {
 public:
-    enum class Scheme : int { NONE=0, GPG };
+    enum class Scheme : int { NONE=0, GPG, AES };
 
     virtual ~Cipher () {}
 
@@ -64,9 +65,9 @@ public:
         processCipherText(std::vector<uint8_t> cipher_text, std::shared_ptr<Parameters>&& params) = 0;
 
     /**
-     * Get a cipher by specifying the scheme to use (either GPG).
+     * Get a cipher by specifying the scheme to use (either GPG or AES).
      *
-     * @param scheme       The scheme to use (GPG).
+     * @param scheme       The scheme to use (GPG, AES).
      * @param init_params  The initialization parameters if needed.
      *
      * @return A cipher
@@ -80,7 +81,7 @@ public:
      *
      * @return A cipher
      */
-    static std::shared_ptr<Cipher> get(const std::vector<uint8_t>& cipher_text);
+    static std::shared_ptr<Cipher> get(const std::vector<uint8_t>& cipher_text, const std::string& pin);
 };
 
 struct GPGParameters {
@@ -95,6 +96,14 @@ struct GPGParameters {
     GPGParameters(std::string key_id) : key_id(key_id) {}
     GPGParameters(std::vector<std::string> recipients, bool self_recipient, bool sign)
         : recipients(recipients), self_recipient(self_recipient), sign(sign) {}
+};
+
+struct AESParameters {
+    const static Cipher::Scheme scheme = Cipher::Scheme::AES;
+    std::string password;
+
+    AESParameters() {}
+    AESParameters(std::string password) : password(password) {}
 };
 
 } /* crypto */
