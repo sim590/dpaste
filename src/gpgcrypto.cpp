@@ -76,7 +76,7 @@ std::vector<uint8_t> GPG::processPlainText(std::vector<uint8_t> plain_text, std:
 
     auto to_sign = gparams.sign and not signerKey_.empty();
     if (not gparams.recipients.empty()) {
-        DPASTE_MSG("Encrypting %sdata...", to_sign ? "and signing " : "");
+        DPASTE_MSG("Encrypting (gpg)%s...", to_sign ? " and signing " : "");
         auto res = encrypt(gparams.recipients, plain_text, to_sign);
         return std::get<0>(res);
     }
@@ -89,8 +89,7 @@ GPG::processCipherText(std::vector<uint8_t> cipher_text, std::shared_ptr<Paramet
 {
     auto gparams = params ? std::get<GPGParameters>(*params) : GPGParameters {};
 
-    DPASTE_MSG("Data is GPG encrypted.");
-    DPASTE_MSG("Decrypting...");
+    DPASTE_MSG("Decrypting (gpg)...");
     auto res = decryptAndVerify(cipher_text);
     DPASTE_MSG("Success!");
 

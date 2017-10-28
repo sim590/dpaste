@@ -20,6 +20,7 @@
 
 #include "cipher.h"
 #include "gpgcrypto.h"
+#include "aescrypto.h"
 
 namespace dpaste {
 namespace crypto {
@@ -33,22 +34,23 @@ void Cipher::init() {
     initialized = true;
 }
 
-std::shared_ptr<Cipher> Cipher::get(const std::vector<uint8_t>& cipher_text) {
-
-    if (GPG::isGPGencrypted(cipher_text)) {
+std::shared_ptr<Cipher> Cipher::get(const std::vector<uint8_t>& cipher_text, const std::string& pin="") {
+    if (GPG::isGPGencrypted(cipher_text))
         return std::make_shared<GPG>();
-    }
+    else if (pin.size() == AES::PIN_WITH_PASS_LEN)
+        return std::make_shared<AES>();
     return {};
 }
 
 std::shared_ptr<Cipher> Cipher::get(Scheme scheme, std::shared_ptr<Parameters>&& params) {
     switch (scheme) {
+        case Scheme::AES:
+            return std::make_shared<AES>();
         case Scheme::GPG:
             if (auto gpg_params = std::get_if<GPGParameters>(params.get()))
                 return std::static_pointer_cast<Cipher>(std::make_shared<GPG>(gpg_params->key_id));
             else
                 return std::make_shared<GPG>();
-            break;
         default:
             break;
     }
