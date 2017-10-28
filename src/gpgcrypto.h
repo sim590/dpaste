@@ -32,12 +32,23 @@
 #include <gpgme++/signingresult.h>
 #include <gpgme++/verificationresult.h>
 
-namespace dpaste {
+#include "cipher.h"
 
-class GPGCrypto {
+namespace dpaste {
+namespace crypto {
+
+class GPG : public Cipher {
 public:
-    GPGCrypto(std::string signer);
-    virtual ~GPGCrypto () {}
+    GPG(std::string signer="");
+    virtual ~GPG () {}
+
+    static void init();
+
+    std::vector<uint8_t>
+        processPlainText(std::vector<uint8_t> plain_text, std::shared_ptr<Parameters>&& params) override;
+
+    std::vector<uint8_t>
+        processCipherText(std::vector<uint8_t> cipher_text, std::shared_ptr<Parameters>&& params) override;
 
     std::tuple<std::vector<uint8_t>,
         GpgME::EncryptionResult,
@@ -55,14 +66,19 @@ public:
 
     GpgME::VerificationResult verify(const std::vector<uint8_t>& signature, const std::vector<uint8_t>& plain_text) const;
 
-    bool isGPGencrypted(const std::vector<uint8_t>& d) const;
+    void comment_on_signature(const GpgME::Signature& sig);
+
+    static bool isGPGencrypted(const std::vector<uint8_t>& d);
 
 private:
     GpgME::Key getKey(const std::string& key_id) const;
 
     std::unique_ptr<GpgME::Context> ctx;
+    std::string signerKey_;
 };
 
+
+} /* crypto */
 } /* dpaste */
 
 /* vim:set et sw=4 ts=4 tw=120: */

@@ -7,6 +7,7 @@ libdpaste_a_SOURCES = \
 					  http_client.cpp \
 					  bin.cpp \
 					  log.cpp \
+					  cipher.cpp \
 					  gpgcrypto.cpp
 dpaste_SOURCES = main.cpp
 

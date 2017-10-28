@@ -26,11 +26,13 @@
 #include <gpgme++/data.h>
 #include <gpgme.h>
 
+#include "log.h"
 #include "gpgcrypto.h"
 
 static constexpr const size_t BUFLEN = 1024;
 
 namespace dpaste {
+namespace crypto {
 
 std::vector<uint8_t> dataToVector(GpgME::Data& d) {
     d.seek(0, SEEK_SET);
@@ -43,23 +45,66 @@ std::vector<uint8_t> dataToVector(GpgME::Data& d) {
     return v;
 }
 
-GPGCrypto::GPGCrypto(std::string signer) : ctx(GpgME::Context::createForProtocol(GpgME::Protocol::OpenPGP)) {
-    GpgME::initializeLibrary();
-
-    auto err = GpgME::checkEngine(GpgME::Protocol::OpenPGP);
-    if (err.code() != GPG_ERR_NO_ERROR)
-        throw GpgME::Exception(err, "Failed to initialize OpenPGP engine");
-
+GPG::GPG(std::string signer) : ctx(GpgME::Context::createForProtocol(GpgME::Protocol::OpenPGP)), signerKey_(signer) {
     ctx = std::unique_ptr<GpgME::Context>(GpgME::Context::createForProtocol(GpgME::Protocol::OpenPGP));
     ctx->setArmor(1);
     if (not signer.empty())
         ctx->addSigningKey(getKey(signer));
 }
 
+void GPG::init() {
+    static bool initialized = false;
+    if (initialized) return;
+
+    GpgME::initializeLibrary();
+    auto err = GpgME::checkEngine(GpgME::Protocol::OpenPGP);
+    if (err.code() != GPG_ERR_NO_ERROR)
+        throw GpgME::Exception(err, "Failed to initialize OpenPGP engine");
+
+    initialized = true;
+}
+
+std::vector<uint8_t> GPG::processPlainText(std::vector<uint8_t> plain_text, std::shared_ptr<Parameters>&& params)
+{
+    if (not params)
+        return {};
+
+    auto gparams = std::get<GPGParameters>(*params);
+    /* we include self as recipient if there's at least one other recipient */
+    if (not gparams.recipients.empty() and gparams.self_recipient and not signerKey_.empty())
+        gparams.recipients.emplace_back(signerKey_);
+
+    auto to_sign = gparams.sign and not signerKey_.empty();
+    if (not gparams.recipients.empty()) {
+        DPASTE_MSG("Encrypting %sdata...", to_sign ? "and signing " : "");
+        auto res = encrypt(gparams.recipients, plain_text, to_sign);
+        return std::get<0>(res);
+    }
+
+    return {};
+}
+
+std::vector<uint8_t>
+GPG::processCipherText(std::vector<uint8_t> cipher_text, std::shared_ptr<Parameters>&& params)
+{
+    auto gparams = params ? std::get<GPGParameters>(*params) : GPGParameters {};
+
+    DPASTE_MSG("Data is GPG encrypted.");
+    DPASTE_MSG("Decrypting...");
+    auto res = decryptAndVerify(cipher_text);
+    DPASTE_MSG("Success!");
+
+    auto data = std::move(std::get<0>(res));
+    auto& verif_res = std::get<2>(res);
+    if (verif_res.numSignatures() > 0)
+        comment_on_signature(verif_res.signature(0));
+    return data;
+}
+
 std::tuple<std::vector<uint8_t>,
     GpgME::EncryptionResult,
     GpgME::SigningResult>
-GPGCrypto::encrypt(const std::vector<std::string>& recipients, std::vector<uint8_t> plain_text, bool sign) const {
+GPG::encrypt(const std::vector<std::string>& recipients, std::vector<uint8_t> plain_text, bool sign) const {
     if (not ctx or (sign and ctx->signingKeys().empty()))
         return {};
 
@@ -98,7 +143,7 @@ GPGCrypto::encrypt(const std::vector<std::string>& recipients, std::vector<uint8
 std::tuple<std::vector<uint8_t>,
     GpgME::DecryptionResult,
     GpgME::VerificationResult>
-GPGCrypto::decryptAndVerify(const std::vector<uint8_t>& cipher_text) const {
+GPG::decryptAndVerify(const std::vector<uint8_t>& cipher_text) const {
     if (not ctx)
         return {};
 
@@ -118,7 +163,7 @@ GPGCrypto::decryptAndVerify(const std::vector<uint8_t>& cipher_text) const {
 
 std::pair<std::vector<uint8_t>,
     GpgME::SigningResult>
-GPGCrypto::sign(const std::vector<uint8_t>& plain_text) const {
+GPG::sign(const std::vector<uint8_t>& plain_text) const {
     if (not ctx or ctx->signingKeys().empty())
         return {};
 
@@ -135,7 +180,7 @@ GPGCrypto::sign(const std::vector<uint8_t>& plain_text) const {
 }
 
 GpgME::VerificationResult
-GPGCrypto::verify(const std::vector<uint8_t>& signature, const std::vector<uint8_t>& plain_text) const {
+GPG::verify(const std::vector<uint8_t>& signature, const std::vector<uint8_t>& plain_text) const {
     if (not ctx)
         return {};
 
@@ -149,7 +194,13 @@ GPGCrypto::verify(const std::vector<uint8_t>& signature, const std::vector<uint8
     return res;
 }
 
-GpgME::Key GPGCrypto::getKey(const std::string& key_id) const {
+void GPG::comment_on_signature(const GpgME::Signature& sig) {
+    const auto& s = sig.summary();
+    if (s & GpgME::Signature::Valid)
+        DPASTE_MSG("Valid signature from key with ID %s", sig.fingerprint());
+}
+
+GpgME::Key GPG::getKey(const std::string& key_id) const {
     if (not ctx)
         return {};
 
@@ -161,11 +212,12 @@ GpgME::Key GPGCrypto::getKey(const std::string& key_id) const {
     return key;
 }
 
-bool GPGCrypto::isGPGencrypted(const std::vector<uint8_t>& data) const {
+bool GPG::isGPGencrypted(const std::vector<uint8_t>& data) {
     GpgME::Data d {reinterpret_cast<const char*>(data.data()), data.size()};
     return d.type() == GpgME::Data::Type::PGPEncrypted;
 }
 
+} /* crypto */
 } /* dpaste */
 
 /* vim:set et sw=4 ts=4 tw=120: */

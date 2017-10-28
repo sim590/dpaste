@@ -22,12 +22,14 @@
 #include <iostream>
 #include <array>
 #include <iomanip>
+#include <memory>
 
 #include <msgpack.hpp>
 
 #include "bin.h"
 #include "conf.h"
 #include "log.h"
+#include "gpgcrypto.h"
 
 namespace dpaste {
 
@@ -37,25 +39,16 @@ Bin::Bin() {
     /* load dpaste config */
     auto config_file = conf::ConfigurationFile();
     config_file.load();
-    conf = config_file.getConfiguration();
+    conf_ = config_file.getConfiguration();
 
     long port;
     {
-        std::istringstream conv(conf.at("port"));
+        std::istringstream conv(conf_.at("port"));
         conv >> port;
     }
 
     node.run();
-    http_client_ = std::make_unique<HttpClient>(conf.at("host"), port);
-
-    keyid_ = conf.at("pgp_key_id");
-    gpg = std::make_unique<GPGCrypto>(keyid_);
-}
-
-void comment_on_signature(const GpgME::Signature& sig) {
-    const auto& s = sig.summary();
-    if (s & GpgME::Signature::Valid)
-        DPASTE_MSG("Valid signature from key with ID %s", sig.fingerprint());
+    http_client_ = std::make_unique<HttpClient>(conf_.at("host"), port);
 }
 
 std::string Bin::code_from_dpaste_uri(const std::string& uri) {
@@ -84,28 +77,19 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
         Packet p;
         try {
             p.deserialize(data);
-            if (gpg->isGPGencrypted(p.data)) {
-                DPASTE_MSG("Data is GPG encrypted.");
-                if (not no_decrypt) {
-                    DPASTE_MSG("Decrypting...");
-                    auto res = gpg->decryptAndVerify(p.data);
-                    DPASTE_MSG("Success!");
-
-                    data = std::move(std::get<0>(res));
-                    auto& verif_res = std::get<2>(res);
-                    if (verif_res.numSignatures() > 0)
-                        comment_on_signature(verif_res.signature(0));
-                } else
-                    data = std::move(p.data);
-            } else {
+            auto cipher = crypto::Cipher::get(p.data);
+            if (cipher and not no_decrypt)
+                data = cipher->processCipherText(p.data, {});
+            else
                 data = std::move(p.data);
-                if (not p.signature.empty()) {
-                    DPASTE_MSG("Data is GPG signed. Verifying...");
-                    auto res = gpg->verify(p.signature, data);
-                    if (res.numSignatures() > 0)
-                        comment_on_signature(res.signature(0));
-                }
+            if (not (cipher or p.signature.empty())) {
+                auto gc = std::dynamic_pointer_cast<crypto::GPG>(crypto::Cipher::get(crypto::Cipher::Scheme::GPG, {}));
+                DPASTE_MSG("Data is GPG signed. Verifying...");
+                auto res = gc->verify(p.signature, data);
+                if (res.numSignatures() > 0)
+                    gc->comment_on_signature(res.signature(0));
             }
+
         } catch (const GpgME::Exception& e) {
             DPASTE_MSG("%s", e.what());
             return {false, ""};
@@ -140,35 +124,40 @@ std::string Bin::random_pin() {
     return pin_s;
 }
 
-std::string Bin::paste(std::vector<uint8_t>&& data,
-        std::string&& recipient,
-        bool sign,
-        bool self_recipient) const
+std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params) const
 {
-    /* we include self as recipient if there's at least one other recipient */
-    std::vector<std::string> recipients {};
-    if (not recipient.empty()) {
-        recipients.emplace_back(std::move(recipient));
-        if (self_recipient and not keyid_.empty())
-            recipients.emplace_back(keyid_);
-    }
-
+    /* paste a blob on the DHT */
     auto code = random_pin();
 
     /* paste a blob on the DHT */
     Packet p;
-    auto to_sign = sign and not keyid_.empty();
-    if (not recipients.empty()) {
-        DPASTE_MSG("Encrypting %sdata...", to_sign ? "and signing " : "");
-        auto res = gpg->encrypt(recipients, data, to_sign);
-        p.data = std::get<0>(res);
-    } else {
-        if (to_sign) {
-            DPASTE_MSG("Signing data...");
-            auto res = gpg->sign(p.data);
-            p.signature = res.first;
+    {
+        std::shared_ptr<crypto::Parameters> sparams(std::move(params));
+        std::shared_ptr<crypto::Parameters> init_params;
+        crypto::Cipher::Scheme scheme;
+        bool to_sign {false};
+        if (auto gp = std::get_if<crypto::GPGParameters>(sparams.get())) {
+            auto& keyid = conf_.at("pgp_key_id");
+            to_sign = gp->sign and not keyid.empty();
+            scheme = gp->scheme;
+            init_params = std::make_shared<crypto::Parameters>();
+            init_params->emplace<crypto::GPGParameters>(keyid);
         }
-        p.data.insert(p.data.end(), data.begin(), data.end());
+        auto cipher = crypto::Cipher::get(scheme, std::move(init_params));
+
+        if (cipher) {
+            auto cipher_text = cipher->processPlainText(data, std::move(sparams));
+            if (cipher_text.empty()) {
+                p.data.insert(p.data.end(), data.begin(), data.end());
+                if (to_sign) {
+                    DPASTE_MSG("Signing data...");
+                    auto res = std::dynamic_pointer_cast<crypto::GPG>(cipher)->sign(p.data);
+                    p.signature = res.first;
+                }
+            } else
+                p.data = cipher_text;
+        } else
+            p.data.insert(p.data.end(), data.begin(), data.end());
     }
 
     DPASTE_MSG("Pasting data...");

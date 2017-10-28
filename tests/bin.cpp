@@ -51,7 +51,7 @@ TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
     Bin bin {};
     SECTION ( "pasting data {0,1,2,3,4}" ) {
         using pbt = PirateBinTester;
-        auto code = bin.paste(std::vector<uint8_t> {data});
+        auto code = bin.paste(std::vector<uint8_t> {data}, {});
         REQUIRE ( code.size() == pbt::LOCATION_CODE_LEN+sizeof(pbt::DPASTE_URI_PREFIX)-1 );
 
         SECTION ( "getting pasted blob back from the DHT" ) {

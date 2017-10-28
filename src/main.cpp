@@ -21,6 +21,8 @@
 #include <memory>
 #include <string>
 
+#include <vector>
+
 extern "C" {
 #include <getopt.h>
 }
@@ -30,7 +32,7 @@ extern "C" {
 #endif
 
 #include "bin.h"
-
+#include "cipher.h"
 
 /* Command line parsing */
 struct ParsedArgs {
@@ -38,27 +40,29 @@ struct ParsedArgs {
     bool help {false};
     bool version {false};
     bool sign {false};
+    bool gpg_encrypt {false};
     bool no_decrypt {false};
     bool self_recipient {false};
     std::string code;
-    std::string recipient;
+    std::vector<std::string> recipients;
 };
 
 static const constexpr struct option long_options[] = {
    {"help",           no_argument,       nullptr, 'h'},
    {"version",        no_argument,       nullptr, 'v'},
    {"get",            required_argument, nullptr, 'g'},
-   {"encrypt",        required_argument, nullptr, 'e'},
+   {"gpg-encrypt",    no_argument,       nullptr, '4'},
+   {"recipients",     required_argument, nullptr, 'r'},
    {"sign",           no_argument,       nullptr, 's'},
-   {"no-decrypt",     no_argument,       nullptr, 'x'},
-   {"self-recipient", no_argument,       nullptr, 'r'},
+   {"no-decrypt",     no_argument,       nullptr, '1'},
+   {"self-recipient", no_argument,       nullptr, '2'},
    {nullptr,          0,                 nullptr,  0 }
 };
 
 ParsedArgs parseArgs(int argc, char *argv[]) {
     ParsedArgs pa;
     int opt;
-    while ((opt = getopt_long(argc, argv, "hvg:e:s", long_options, nullptr)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hvg:r:s", long_options, nullptr)) != -1) {
         switch (opt) {
         case 'h':
             pa.help = true;
@@ -69,16 +73,19 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
         case 'g':
             pa.code = std::string(optarg);
             break;
-        case 'e':
-            pa.recipient = std::string(optarg);
+        case '4':
+            pa.gpg_encrypt = true;
+            break;
+        case 'r':
+            pa.recipients.emplace_back(std::string(optarg));
             break;
         case 's':
             pa.sign = true;
             break;
-        case 'x':
+        case '1':
             pa.no_decrypt = true;
             break;
-        case 'r':
+        case '2':
             pa.self_recipient = true;
             break;
         default:
@@ -113,8 +120,12 @@ void print_help() {
               << "        Get the pasted file under the code {code}."
               << std::endl;
 
-    std::cout << "    -e|--encrypt {recipient}" << std::endl
-              << "        GPG encrypt for recipient {recipient}." << std::endl;
+    std::cout << "    --gpg-encrypt" << std::endl
+              << "        Use GPG scheme for encryption/signing." << std::endl;
+
+    std::cout << "    -r|--recipients {recipient}" << std::endl
+              << "        Specify the list of recipients to use for GPG encryption (--gpg--encrypt). " << std::endl
+              << "        Use '-r' multiple times to specify a list of recipients" << std::endl;
 
     std::cout << "    -s|--sign" << std::endl
               << "        Tells wether message should be signed using the user's GPG key. The key has to be configured" << std::endl;
@@ -133,6 +144,21 @@ void print_help() {
               << std::endl;
 }
 
+std::unique_ptr<dpaste::crypto::Parameters> params_from_args(const ParsedArgs& pa) {
+    if (pa.gpg_encrypt) {
+        auto params = std::make_unique<dpaste::crypto::Parameters>();
+        params->emplace<dpaste::crypto::GPGParameters>(pa.recipients, pa.self_recipient, pa.sign);
+        return params;
+    } else if (pa.sign) {
+        auto params = std::make_unique<dpaste::crypto::Parameters>();
+        params->emplace<dpaste::crypto::GPGParameters>();
+        auto& p = std::get<dpaste::crypto::GPGParameters>(*params);
+        p.sign = pa.sign;
+        return params;
+    }
+    return {};
+}
+
 int main(int argc, char *argv[]) {
     auto parsed_args = parseArgs(argc, argv);
     if (parsed_args.fail) {
@@ -145,7 +171,8 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    dpaste::Bin dpastebin { };
+    dpaste::Bin dpastebin {};
+    dpaste::crypto::Cipher::init();
     int rc;
     if (not parsed_args.code.empty()) {
         auto r = dpastebin.get(std::move(parsed_args.code), parsed_args.no_decrypt);
@@ -158,14 +185,13 @@ int main(int argc, char *argv[]) {
     else {
         std::stringstream ss;
         ss << std::cin.rdbuf();
-        auto uri = dpastebin.paste(std::move(ss),
-                std::move(parsed_args.recipient),
-                parsed_args.sign,
-                parsed_args.self_recipient);
+        auto uri = dpastebin.paste(std::move(ss), params_from_args(parsed_args));
         std::cout << uri << std::endl;
         rc = uri.empty() ? 1 : 0;
     }
 
     return rc;
 }
+
+/* vim:set et sw=4 ts=4 tw=120: */
 
