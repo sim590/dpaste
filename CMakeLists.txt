@@ -48,10 +48,12 @@ list(APPEND dpaste_SOURCES
 #################################
 include_directories(${CURLPP_INCLUDE_DIRS} ${glibmm_INCLUDE_DIRS} ${B64_INCLUDE_DIRS} ${GPGME_INCLUDE_DIRS})
 add_executable(dpaste ${dpaste_SOURCES} ${dpaste_HEADERS})
-target_link_libraries(dpaste LINK_PUBLIC opendht ${CURLPP_LIBRARIES} ${glibmm_LIBRARIES} ${B64_LIBRARIES} -lgpgmepp ${GPGME_VANILLA_LIBRARIES})
+target_link_libraries(dpaste LINK_PUBLIC opendht -lgnutls -lnettle -largon2 -lpthread ${CURLPP_LIBRARIES} ${glibmm_LIBRARIES} ${B64_LIBRARIES} -lgpgmepp ${GPGME_VANILLA_LIBRARIES})
 
 #####################
 #  install targets  #
 #####################
 install(TARGETS dpaste DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+
+#  vim: set ts=4 sw=4 tw=120 noet :
 
