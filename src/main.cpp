@@ -20,7 +20,10 @@
 
 #include <memory>
 #include <string>
+
+extern "C" {
 #include <getopt.h>
+}
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
