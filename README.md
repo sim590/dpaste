@@ -6,7 +6,8 @@ A simple pastebin for light values (max 64KB) using OpenDHT distributed hash tab
 
 Let a file `A.md` you want to share.
 ```sh
-$ cat A.md | dpaste
+$ dpaste < A.md
+DPASTE: Pasting data...
 dpaste:74236E62
 ```
 
