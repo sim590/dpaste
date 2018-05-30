@@ -17,8 +17,34 @@ retrieve the pasted file within 10 minutes by simply doing:
 $ dpaste -g dpaste:74236E62
 ```
 
-Use respectively options `-e` and `-s` to encrypt and sign messages using the
-OpenPGP protocol (a working gpg configuration needs to be found on the system).
+## Encryption
+
+One can encrypt his document using the option `--aes-encrypt` or
+`--gpg-encrypt -r {recipient}`. In the former case, AES-CBC is used and in
+the latter it is simple GPG encryption. One can also *sign-then-encrypt* his
+message by adding the flag `-s` (a working gpg configuration needs to be found
+on the system). If both `--aes-encrypt` and `--gpg-encrypt` (or `-s`) options
+are present, aes encryption method is used.
+
+### AES
+
+When using `--aes-encrypt`, `dpaste` will generate a random 32-bit passphrase
+which will then be stretched using [argon2][] crypto library. This is all
+handled by OpenDHT crypto layer. After pasting the blob, the returned PIN will
+be 64 bits long instead of the classic 32 bits. Indeed, the generated 32-bit
+password is appended to the location code used to index on the DHT. For e.g.:
+
+```sh
+$ dpaste --aes-encrypt < ${some_file}
+DPASTE: Encrypting (aes-cbc) data...
+DPASTE: Pasting data...
+dpaste:B79F2F91C811D5DC
+```
+
+Therefore, the blob will be pasted on `HASH("B79F2F91")` and encrypted with
+a key derived from the passphrase `C811D5DC`.
+
+[argon2]: https://github.com/P-H-C/phc-winner-argon2
 
 ## How to build
 
