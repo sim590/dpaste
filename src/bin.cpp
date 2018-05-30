@@ -59,7 +59,7 @@ void comment_on_signature(const GpgME::Signature& sig) {
 
 std::string Bin::code_from_dpaste_uri(const std::string& uri) {
     const auto p = uri.find_first_of(DPASTE_URI_PREFIX);
-    return uri.substr(p != std::string::npos ? sizeof(DPASTE_URI_PREFIX)-1 : p);
+    return uri.substr(p != std::string::npos ? sizeof(DPASTE_URI_PREFIX)-1 : 0);
 }
 
 int Bin::get(std::string&& code, bool no_decrypt) {
