@@ -119,11 +119,10 @@ int Bin::get(std::string&& code, bool no_decrypt) {
 }
 
 std::vector<uint8_t> Bin::data_from_stream(std::stringstream&& input_stream) {
-    std::array<uint8_t, dht::MAX_VALUE_SIZE> buf;
-    input_stream.read(reinterpret_cast<char*>(buf.data()), dht::MAX_VALUE_SIZE);
-
     std::vector<uint8_t> buffer;
-    buffer.insert(buffer.end(), buf.begin(), buf.begin()+input_stream.gcount());
+    buffer.resize(dht::MAX_VALUE_SIZE);
+    input_stream.read(reinterpret_cast<char*>(buffer.data()), dht::MAX_VALUE_SIZE);
+    buffer.resize(input_stream.gcount());
     return buffer;
 }
 
