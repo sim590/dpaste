@@ -71,6 +71,8 @@ not likely to be "down".
 ## Roadmap
 
 - Password based encryption (AES using gnutls);
+- Add support for values with size greater than 64Ko (splitting values across
+  multiple locations);
 - ~~Add user configuration file system;~~
 - ~~Support RSA encrypt/sign using user's GPG key;~~
 - ~~Support running the DHT node as service for executing dpaste operations.~~
