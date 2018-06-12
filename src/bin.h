@@ -56,13 +56,13 @@ public:
      * @param sign            Whether to sign the data or not.
      * @param self_recipient  Whether including self in recipient list.
      *
-     * @return return code (0: success, 1 fail)
+     * @return the code (key) to the pasted data. If empty, then process failed.
      */
-    int paste(std::vector<uint8_t>&& data,
+    std::string paste(std::vector<uint8_t>&& data,
             std::string&& recipient={},
             bool sign=false,
             bool self_recipient=false) const;
-    int paste(std::stringstream&& input_stream,
+    std::string paste(std::stringstream&& input_stream,
             std::string&& recipient={},
             bool sign=false,
             bool self_recipient=false) const

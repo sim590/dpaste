@@ -152,10 +152,12 @@ int main(int argc, char *argv[]) {
     else {
         std::stringstream ss;
         ss << std::cin.rdbuf();
-        rc = dpastebin.paste(std::move(ss),
+        auto uri = dpastebin.paste(std::move(ss),
                 std::move(parsed_args.recipient),
                 parsed_args.sign,
                 parsed_args.self_recipient);
+        std::cout << uri << std::endl;
+        rc = uri.empty() ? 1 : 0;
     }
 
     return rc;

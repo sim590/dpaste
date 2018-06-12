@@ -126,7 +126,7 @@ std::vector<uint8_t> Bin::data_from_stream(std::stringstream&& input_stream) {
     return buffer;
 }
 
-int Bin::paste(std::vector<uint8_t>&& data,
+std::string Bin::paste(std::vector<uint8_t>&& data,
         std::string&& recipient,
         bool sign,
         bool self_recipient) const
@@ -178,11 +178,7 @@ int Bin::paste(std::vector<uint8_t>&& data,
         node.stop();
     }
 
-    if (success) {
-        std::cout << DPASTE_URI_PREFIX << code << std::endl;
-        return 0;
-    } else
-        return 1;
+    return success ? DPASTE_URI_PREFIX+code : "";
 }
 
 msgpack::object*
