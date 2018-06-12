@@ -1,0 +1,13 @@
+sudo: required
+
+services:
+    - docker
+
+language: cpp
+
+before_install: docker pull sim590/dpaste-ci
+
+script: docker build -f docker/DockerfileTravis .
+
+#  vim: set ts=4 sw=4 tw=80 et :
+
