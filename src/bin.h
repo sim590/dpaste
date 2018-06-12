@@ -46,7 +46,7 @@ public:
      *
      * @return return code (0: success, 1 fail)
      */
-    int get(std::string&& code, bool no_decrypt=false);
+    std::pair<bool, std::string> get(std::string&& code, bool no_decrypt=false);
 
     /**
      * Execute procedure to publish content and generate the associated code.

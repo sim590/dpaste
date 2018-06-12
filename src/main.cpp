@@ -147,8 +147,14 @@ int main(int argc, char *argv[]) {
 
     dpaste::Bin dpastebin { };
     int rc;
-    if (not parsed_args.code.empty())
-        rc = dpastebin.get(std::move(parsed_args.code), parsed_args.no_decrypt);
+    if (not parsed_args.code.empty()) {
+        auto r = dpastebin.get(std::move(parsed_args.code), parsed_args.no_decrypt);
+        if (r.first) {
+            rc = 0;
+            std::cout << r.second << std::endl;
+        } else
+            rc = 1;
+    }
     else {
         std::stringstream ss;
         ss << std::cin.rdbuf();

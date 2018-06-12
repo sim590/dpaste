@@ -62,7 +62,7 @@ std::string Bin::code_from_dpaste_uri(const std::string& uri) {
     return uri.substr(p != std::string::npos ? sizeof(DPASTE_URI_PREFIX)-1 : 0);
 }
 
-int Bin::get(std::string&& code, bool no_decrypt) {
+std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
     code = code_from_dpaste_uri(code);
 
     /* first try http server */
@@ -106,16 +106,11 @@ int Bin::get(std::string&& code, bool no_decrypt) {
             }
         } catch (const GpgME::Exception& e) {
             DPASTE_MSG("%s", e.what());
-            return -1;
+            return {false, ""};
         } catch (msgpack::type_error& e) { } /* backward compatibility with <=0.3.3 */
 
-        { /* print the buffer from data without copying */
-            std::stringstream ss;
-            ss.rdbuf()->pubsetbuf(reinterpret_cast<char*>(&data[0]), data.size());
-            std::cout << ss.rdbuf() << std::endl;
-        }
     }
-    return 0;
+    return {true, {data.begin(), data.end()}};
 }
 
 std::vector<uint8_t> Bin::data_from_stream(std::stringstream&& input_stream) {
