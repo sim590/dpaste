@@ -54,13 +54,13 @@ Milis Linux:   mps kur dpaste  (https://github.com/milisarge/malfs-milis/blob/ma
 ## Dependencies
 
 - [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 1.2.0)
-- [msgpack-c](https://github.com/msgpack/msgpack-c) (minimal version: unknown)
-- [gpgmepp](https://github.com/KDE/gpgmepp) (minimal version: unknown)
-- [json.hpp](https://github.com/nlohmann/json) (minimal version: unknown)
+- [msgpack-c](https://github.com/msgpack/msgpack-c)
+- [gpgmepp](https://github.com/KDE/gpgmepp)
+- [json.hpp](https://github.com/nlohmann/json)
 - [cURLpp](https://github.com/jpbarrette/curlpp) (minimal version: 0.8.1)
-- [glibmm](https://github.com/GNOME/glibmm) (minimal version: unknown)
-- [libb64](http://libb64.sourceforge.net/) (minimal version: unknown)
-- Getopt (minimal version: unknown)
+- [glibmm](https://github.com/GNOME/glibmm)
+- [libb64](http://libb64.sourceforge.net/)
+- Getopt
 
 ## Pastebin over DHT
 
