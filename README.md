@@ -61,6 +61,7 @@ Milis Linux:   mps kur dpaste  (https://github.com/milisarge/malfs-milis/blob/ma
 - [glibmm](https://github.com/GNOME/glibmm)
 - [libb64](http://libb64.sourceforge.net/)
 - Getopt
+- [catch](https://github.com/catchorg/Catch2) for unit tests
 
 ## Pastebin over DHT
 
