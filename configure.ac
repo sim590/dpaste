@@ -13,13 +13,14 @@ AS_IF([test "x$enable_debug" = "xyes"],
 AC_PROG_CXX
 
 AX_CXX_COMPILE_STDCXX(14,[noext],[mandatory])
-dnl explicit c++14 in flags so that compile_commands.json yields it.
+# explicit c++14 in flags so that compile_commands.json yields it.
 CXXFLAGS="${CXXFLAGS} -std=c++14"
 
 PKG_CHECK_MODULES([OpenDHT], [opendht >= 1.2])
 PKG_CHECK_MODULES([CURLPP], [curlpp])
 PKG_CHECK_MODULES([GLIBMM], [glibmm-2.4])
 
+# dpaste (CPP/LD)FLAGS common with different binaries (particularly tests)
 AC_SUBST(OpenDHT_LIBS, "${OpenDHT_LIBS} -lpthread")
 
 AM_PATH_GPGME()
