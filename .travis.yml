@@ -7,7 +7,9 @@ language: cpp
 
 before_install: docker pull sim590/dpaste-ci
 
-script: docker build -f docker/DockerfileTravis .
+script:
+    - docker build -t dpaste-test -f docker/DockerfileTravis .
+    - docker run dpaste-test /bin/sh -c 'cd root/dpaste && ./configure --enable-tests && make test && cd .. && rm -rf dpaste'
 
 #  vim: set ts=4 sw=4 tw=80 et :
 
