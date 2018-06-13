@@ -13,7 +13,8 @@ RUN apt-get install -y \
         libgpgmepp-dev \
         libgpgme-dev \
         nlohmann-json-dev \
-        libglibmm-2.4-dev
+        libglibmm-2.4-dev \
+        catch
 RUN apt-get clean
 
 #  vim: set ft=dockerfile ts=4 sw=4 tw=120 et :
