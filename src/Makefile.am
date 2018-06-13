@@ -9,6 +9,10 @@ dpaste_SOURCES = \
 				 log.cpp \
 				 gpgcrypto.cpp
 
-dpaste_CPPFLAGS = $(GLIBMM_CFLAGS) $(CURLPP_CLFAGS) $(GPGME_CFLAGS)
-dpaste_LDADD    = $(OpenDHT_LIBS) $(GLIBMM_LIBS) $(CURLPP_LIBS) -lb64 -lgpgmepp $(GPGME_LIBS)
+# Variables defined in toplevel Makefile. Thus, `make` cannot be called from
+# this directory.
+dpaste_CPPFLAGS = $(dpaste_CPPFLAGS_)
+dpaste_LDADD    = $(dpaste_LIBS)
+
+#  vim: set ts=4 sw=4 tw=120 noet :
 
