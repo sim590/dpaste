@@ -2,6 +2,7 @@
 *.o
 *.obj
 src/dpaste
+tests/dptest
 
 # Executables
 *.exe

@@ -1,18 +1,20 @@
-bin_PROGRAMS = dpaste
+bin_PROGRAMS     = dpaste
+noinst_LIBRARIES = libdpaste.a
 
-dpaste_SOURCES = \
-				 main.cpp \
-				 node.cpp \
-				 conf.cpp \
-				 http_client.cpp \
-				 bin.cpp \
-				 log.cpp \
-				 gpgcrypto.cpp
+libdpaste_a_SOURCES = \
+					  node.cpp \
+					  conf.cpp \
+					  http_client.cpp \
+					  bin.cpp \
+					  log.cpp \
+					  gpgcrypto.cpp
+dpaste_SOURCES = main.cpp
 
 # Variables defined in toplevel Makefile. Thus, `make` cannot be called from
 # this directory.
-dpaste_CPPFLAGS = $(dpaste_CPPFLAGS_)
-dpaste_LDADD    = $(dpaste_LIBS)
+libdpaste_a_CPPFLAGS = $(dpaste_CPPFLAGS_)
+dpaste_CPPFLAGS      = $(dpaste_CPPFLAGS_)
+dpaste_LDADD         = libdpaste.a $(dpaste_LIBS)
 
 #  vim: set ts=4 sw=4 tw=120 noet :
 
