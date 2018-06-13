@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "config.h"
 #include "log.h"
 
 static constexpr const char* DPASTE_MSG_PREFIX = "DPASTE: ";
@@ -43,10 +44,12 @@ void print_log(char const *m, va_list args) {
 }
 
 void DPASTE_MSG(char const* format, ...) {
+#ifndef DPASTE_TEST
     va_list args;
     va_start(args, format);
     print_log(format, args);
     va_end(args);
+#endif
 }
 
 /* vim:set et sw=4 ts=4 tw=120: */
