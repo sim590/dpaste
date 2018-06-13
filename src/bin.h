@@ -27,13 +27,20 @@
 #include <memory>
 #include <map>
 
+#include "config.h"
 #include "node.h"
 #include "http_client.h"
 #include "gpgcrypto.h"
 
 namespace dpaste {
+#ifdef DPASTE_TEST
+namespace tests { class PirateBinTester; } /* tests */
+#endif
 
 class Bin {
+#ifdef DPASTE_TEST
+    friend class tests::PirateBinTester;
+#endif
 public:
 
     static const constexpr unsigned int DPASTE_PIN_LEN {8};
