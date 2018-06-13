@@ -11,6 +11,7 @@ AS_IF([test "x$enable_debug" = "xyes"],
       [CXXFLAGS="${CXXFLAGS} -O3"])
 
 AC_PROG_CXX
+AC_PROG_RANLIB
 
 AX_CXX_COMPILE_STDCXX(14,[noext],[mandatory])
 # explicit c++14 in flags so that compile_commands.json yields it.
@@ -27,4 +28,19 @@ AM_PATH_GPGME()
 
 AC_CONFIG_FILES([Makefile
                  src/Makefile])
+
+################
+#  Unit tests  #
+################
+AC_ARG_ENABLE([tests], AS_HELP_STRING([--enable-tests], [Enables unit tests compilation]))
+AM_CONDITIONAL([DPASTE_TEST], [test "x$enable_tests" = "xyes"])
+AM_COND_IF([DPASTE_TEST],
+           [
+            AC_DEFINE([DPASTE_TEST], [1], [Unit tests])
+            AC_CONFIG_FILES([tests/Makefile])
+           ])
+
 AC_OUTPUT
+
+# vim: set ts=2 sw=2 tw=120 et :
+
