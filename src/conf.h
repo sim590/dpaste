@@ -50,7 +50,17 @@ public:
     }
     ~ConfigurationFile() {}
 
-    void load();
+    /**
+     * Loads the file on disk and parses lines according to the simple following
+     * format:
+     *
+     *      OPTION = VALUE
+     *
+     * Malformed lines are omitted.
+     *
+     * @return 1 if configuration file cannot be opened, 0 otherwise.
+     */
+    int load();
     const std::map<std::string, std::string>& getConfiguration() { return config_; }
 
 private:

@@ -29,10 +29,10 @@ void trim_str(std::string& str) {
     str = str.substr(first, last - first + 1);
 }
 
-void ConfigurationFile::load() {
+int ConfigurationFile::load() {
     std::ifstream config_file(filePath_, std::ios::in);
     if (not config_file.is_open())
-        return;
+        return 1;
 
     std::string line;
     while (std::getline(config_file, line)) {
@@ -50,7 +50,11 @@ void ConfigurationFile::load() {
             }
         }
     }
+    return 0;
 }
 
 } /* conf  */
 } /* dpaste */
+
+/* vim: set ts=4 sw=4 tw=120 et :*/
+
