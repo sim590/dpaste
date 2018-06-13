@@ -71,6 +71,7 @@ public:
         cv.wait(lk, [&](){ return done.load(); });
 
         node_.join();
+        running_ = false;
     }
 
     /**
