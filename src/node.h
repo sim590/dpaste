@@ -30,9 +30,17 @@
 #include <opendht/rng.h>
 #include <opendht/callbacks.h>
 
+#include "config.h"
+
 namespace dpaste {
+#ifdef DPASTE_TEST
+namespace tests { class PirateNodeTester; } /* tests */
+#endif
 
 class Node {
+#ifdef DPASTE_TEST
+    friend class tests::PirateNodeTester;
+#endif
     static const constexpr char* DEFAULT_BOOTSTRAP_NODE = "bootstrap.ring.cx";
     static const constexpr char* DEFAULT_BOOTSTRAP_PORT = "4222";
     static const constexpr char* CONNECTION_FAILURE_MSG = "err.. Failed to connect to the DHT.";

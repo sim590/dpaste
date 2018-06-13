@@ -2,7 +2,8 @@ check_PROGRAMS = dptest
 
 dptest_SOURCES = \
 				 tests.cpp \
-				 bin.cpp
+				 bin.cpp \
+				 node.cpp
 
 # Variables defined in toplevel Makefile. Thus, `make check` cannot be called
 # from this directory.
