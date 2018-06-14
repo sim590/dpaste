@@ -21,6 +21,7 @@
 #include <sstream>
 #include <iostream>
 #include <array>
+#include <iomanip>
 
 #include <msgpack.hpp>
 
@@ -122,6 +123,21 @@ std::vector<uint8_t> Bin::data_from_stream(std::stringstream&& input_stream) {
     return buffer;
 }
 
+std::string Bin::random_pin() {
+    static std::uniform_int_distribution<uint32_t> dist;
+    static std::mt19937_64 rand_;
+    static dht::crypto::random_device rdev;
+    static std::seed_seq seed {rdev(), rdev()};
+    rand_.seed(seed);
+
+    auto pin = dist(rand_);
+    std::stringstream ss;
+    ss << std::setfill('0') << std::setw(Bin::DPASTE_PIN_LEN) << std::hex << pin;
+    auto pin_s = ss.str();
+    std::transform(pin_s.begin(), pin_s.end(), pin_s.begin(), ::toupper);
+    return pin_s;
+}
+
 std::string Bin::paste(std::vector<uint8_t>&& data,
         std::string&& recipient,
         bool sign,
@@ -135,19 +151,9 @@ std::string Bin::paste(std::vector<uint8_t>&& data,
             recipients.emplace_back(keyid_);
     }
 
+    auto code = random_pin();
+
     /* paste a blob on the DHT */
-    std::uniform_int_distribution<uint32_t> codeDist_;
-    std::mt19937_64 rand_;
-    dht::crypto::random_device rdev;
-    std::seed_seq seed {rdev(), rdev()};
-    rand_.seed(seed);
-
-    auto code_n = codeDist_(rand_);
-    std::stringstream ss;
-    ss << std::hex << code_n;
-    auto code = ss.str();
-    std::transform(code.begin(), code.end(), code.begin(), ::toupper);
-
     Packet p;
     auto to_sign = sign and not keyid_.empty();
     if (not recipients.empty()) {

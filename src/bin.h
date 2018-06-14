@@ -35,6 +35,9 @@ namespace dpaste {
 
 class Bin {
 public:
+
+    static const constexpr unsigned int DPASTE_PIN_LEN {8};
+
     Bin();
     virtual ~Bin () {}
 
@@ -103,6 +106,8 @@ private:
      * @return hexadecimal code from the uri
      */
     static std::string code_from_dpaste_uri(const std::string& uri);
+
+    static std::string random_pin();
 
     /* crypto */
     std::unique_ptr<GPGCrypto> gpg {};
