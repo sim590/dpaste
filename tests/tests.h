@@ -18,38 +18,11 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <random>
-
-#define CATCH_CONFIG_MAIN
-#include <catch.hpp>
-
 namespace dpaste {
 namespace tests {
 
-static std::uniform_int_distribution<uint32_t> dist;
-static std::mt19937_64 rand_;
-
-void init() {
-    static bool initialized = false;
-    if (initialized)
-        return;
-
-    rand_.seed(Catch::rngSeed());
-
-    initialized = true;
-}
-
-int random_number() {
-    init();
-    return dist(rand_);
-}
-
-std::string random_pin() {
-    const auto i = random_number();
-    std::stringstream ss;
-    ss << std::hex << i;
-    return ss.str();
-}
+int random_number();
+std::string random_pin();
 
 } /* tests */
 } /* dpaste */
