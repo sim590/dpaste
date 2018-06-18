@@ -128,7 +128,9 @@ std::string Bin::random_pin() {
     static std::mt19937_64 rand_;
     static dht::crypto::random_device rdev;
     static std::seed_seq seed {rdev(), rdev()};
-    rand_.seed(seed);
+    static bool initialized = false;
+    if (not initialized)
+        rand_.seed(seed);
 
     auto pin = dist(rand_);
     std::stringstream ss;
