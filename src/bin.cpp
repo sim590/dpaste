@@ -74,7 +74,6 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
         auto values = node.get(lcode);
         if (not values.empty())
             data = values.front();
-        node.stop();
     }
 
     if (not data.empty()) {
@@ -136,8 +135,7 @@ std::string Bin::random_pin() {
     return pin_s;
 }
 
-std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params) const
-{
+std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params) {
     /* paste a blob on the DHT */
     auto code = random_pin();
     std::string pwd = "";
@@ -180,13 +178,8 @@ std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Para
     DPASTE_MSG("Pasting data...");
     auto bin_packet = p.serialize();
     auto success = http_client_->put(code, {bin_packet.begin(), bin_packet.end()});
-    if (not success) {
-        Node node;
-        node.run();
-
+    if (not success)
         success = node.paste(code, std::move(bin_packet));
-        node.stop();
-    }
 
     return success ? DPASTE_URI_PREFIX+code+pwd  : "";
 }
