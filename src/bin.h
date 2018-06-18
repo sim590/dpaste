@@ -67,8 +67,8 @@ public:
      *
      * @return the code (key) to the pasted data. If empty, then process failed.
      */
-    std::string paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params) const;
-    std::string paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params) const {
+    std::string paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params);
+    std::string paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params) {
         return paste(data_from_stream(std::move(input_stream)),
                 std::forward<std::unique_ptr<crypto::Parameters>>(params));
     }
