@@ -28,7 +28,9 @@
 #include <map>
 #include <utility>
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 #include "node.h"
 #include "http_client.h"
 #include "cipher.h"
