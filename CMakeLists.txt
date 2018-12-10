@@ -32,6 +32,8 @@ list(APPEND dpaste_HEADERS
     src/bin.h
     src/gpgcrypto.h
     src/log.h
+	src/cipher.h
+	src/aescrypto.h
 )
 list(APPEND dpaste_SOURCES
     src/main.cpp
@@ -41,6 +43,8 @@ list(APPEND dpaste_SOURCES
     src/bin.cpp
     src/gpgcrypto.cpp
     src/log.cpp
+	src/cipher.cpp
+	src/aescrypto.cpp
 )
 
 #################################
