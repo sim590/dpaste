@@ -30,7 +30,9 @@
 #include <opendht/rng.h>
 #include <opendht/callbacks.h>
 
+#ifdef HAVE_CONFG_H
 #include "config.h"
+#endif
 
 namespace dpaste {
 #ifdef DPASTE_TEST

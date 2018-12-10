@@ -23,7 +23,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 #include "log.h"
 
 static constexpr const char* DPASTE_MSG_PREFIX = "DPASTE: ";
