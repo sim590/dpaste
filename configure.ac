@@ -5,6 +5,11 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_HOST
 
+AC_LANG_PUSH([C++])
+AX_CXX_COMPILE_STDCXX(17,[noext],[mandatory])
+# explicit c++17 in flags so that compile_commands.json yields it.
+CXXFLAGS="${CXXFLAGS} -std=c++17"
+
 AC_ARG_ENABLE([debug], AS_HELP_STRING([--enable-debug], [Build in debug mode, adds stricter warnings, disables optimization]))
 AS_IF([test "x$enable_debug" = "xyes"],
       [CXXFLAGS="${CXXFLAGS} -g -Wno-return-type -Wall -Wextra -Wnon-virtual-dtor -O0"],
@@ -12,10 +17,6 @@ AS_IF([test "x$enable_debug" = "xyes"],
 
 AC_PROG_CXX
 AC_PROG_RANLIB
-
-AX_CXX_COMPILE_STDCXX(17,[noext],[mandatory])
-# explicit c++14 in flags so that compile_commands.json yields it.
-CXXFLAGS="${CXXFLAGS} -std=c++17"
 
 PKG_CHECK_MODULES([OpenDHT], [opendht >= 1.2])
 PKG_CHECK_MODULES([CURLPP], [curlpp])
