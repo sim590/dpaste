@@ -189,8 +189,7 @@ int main(int argc, char *argv[]) {
             std::cout << r.second << std::endl;
         } else
             rc = 1;
-    }
-    else {
+    } else {
         std::stringstream ss;
         ss << std::cin.rdbuf();
         auto uri = dpastebin.paste(std::move(ss), params_from_args(parsed_args));

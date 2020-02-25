@@ -89,6 +89,17 @@ private:
     };
 
     /**
+     * Create a Packet from input data and crypto parameters.
+     *
+     * @param data    input data in bytes.
+     * @param params  cryptographic parameters (either GPGParameters or
+     *                AESParameters).
+     *
+     * @return an ordered pair of a Packet and associated password.
+     */
+    std::pair<Bin::Packet, std::string> prepare_data(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params);
+
+    /**
      * Get data from input stream.
      *
      * @param input_stream  The stream to read to get the data.

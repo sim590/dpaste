@@ -97,7 +97,6 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
                 if (res.numSignatures() > 0)
                     gc->comment_on_signature(res.signature(0));
             }
-
         } catch (const GpgME::Exception& e) {
             DPASTE_MSG("%s", e.what());
             return {false, ""};
@@ -135,45 +134,48 @@ std::string Bin::random_pin() {
     return pin_s;
 }
 
-std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params) {
-    /* paste a blob on the DHT */
-    auto code = random_pin();
-    std::string pwd = "";
-
-    /* paste a blob on the DHT */
+std::pair<Bin::Packet, std::string> Bin::prepare_data(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params) {
     Packet p;
-    {
-        std::shared_ptr<crypto::Parameters> sparams(std::move(params));
-        std::shared_ptr<crypto::Parameters> init_params;
-        crypto::Cipher::Scheme scheme;
-        bool to_sign {false};
-        if (auto gp = std::get_if<crypto::GPGParameters>(sparams.get())) {
-            auto& keyid = conf_.at("pgp_key_id");
-            to_sign = gp->sign and not keyid.empty();
-            scheme = gp->scheme;
-            init_params = std::make_shared<crypto::Parameters>();
-            init_params->emplace<crypto::GPGParameters>(keyid);
-        } else if (auto aesp = std::get_if<crypto::AESParameters>(sparams.get())) {
-            scheme = aesp->scheme;
-            pwd = random_pin();
-            aesp->password = pwd;
-        }
-        auto cipher = crypto::Cipher::get(scheme, std::move(init_params));
-
-        if (cipher) {
-            auto cipher_text = cipher->processPlainText(data, std::move(sparams));
-            if (cipher_text.empty()) {
-                p.data.insert(p.data.end(), data.begin(), data.end());
-                if (to_sign) {
-                    DPASTE_MSG("Signing data...");
-                    auto res = std::dynamic_pointer_cast<crypto::GPG>(cipher)->sign(p.data);
-                    p.signature = res.first;
-                }
-            } else
-                p.data = cipher_text;
-        } else
-            p.data.insert(p.data.end(), data.begin(), data.end());
+    std::string pwd = "";
+    std::shared_ptr<crypto::Parameters> sparams(std::move(params));
+    std::shared_ptr<crypto::Parameters> init_params;
+    crypto::Cipher::Scheme scheme;
+    bool to_sign {false};
+    if (auto gp = std::get_if<crypto::GPGParameters>(sparams.get())) {
+        auto& keyid = conf_.at("pgp_key_id");
+        to_sign = gp->sign and not keyid.empty();
+        scheme = gp->scheme;
+        init_params = std::make_shared<crypto::Parameters>();
+        init_params->emplace<crypto::GPGParameters>(keyid);
+    } else if (auto aesp = std::get_if<crypto::AESParameters>(sparams.get())) {
+        scheme = aesp->scheme;
+        pwd = random_pin();
+        aesp->password = pwd;
     }
+    auto cipher = crypto::Cipher::get(scheme, std::move(init_params));
+
+    if (cipher) {
+        auto cipher_text = cipher->processPlainText(data, std::move(sparams));
+        if (cipher_text.empty()) {
+            p.data.insert(p.data.end(), data.begin(), data.end());
+            if (to_sign) {
+                DPASTE_MSG("Signing data...");
+                auto res = std::dynamic_pointer_cast<crypto::GPG>(cipher)->sign(p.data);
+                p.signature = res.first;
+            }
+        } else
+            p.data = cipher_text;
+    } else
+        p.data.insert(p.data.end(), data.begin(), data.end());
+    return {p, pwd};
+}
+
+std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params) {
+    auto code = random_pin();
+
+    auto pp = prepare_data(std::forward<std::vector<uint8_t>>(data), std::forward<std::unique_ptr<crypto::Parameters>>(params));
+    auto& p = pp.first;
+    auto& pwd = pp.second;
 
     DPASTE_MSG("Pasting data...");
     auto bin_packet = p.serialize();
