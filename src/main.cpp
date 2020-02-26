@@ -187,7 +187,7 @@ int main(int argc, char *argv[]) {
         auto r = dpastebin.get(std::move(parsed_args.code), parsed_args.no_decrypt);
         if (r.first) {
             rc = 0;
-            std::cout << r.second << std::endl;
+            std::cout << r.second;
         } else
             rc = 1;
     } else {
