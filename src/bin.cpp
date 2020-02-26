@@ -140,6 +140,7 @@ std::pair<Bin::Packet, std::string> Bin::prepare_data(std::vector<uint8_t>&& dat
     std::shared_ptr<crypto::Parameters> sparams(std::move(params));
     std::shared_ptr<crypto::Parameters> init_params;
     crypto::Cipher::Scheme scheme;
+
     bool to_sign {false};
     if (auto gp = std::get_if<crypto::GPGParameters>(sparams.get())) {
         auto& keyid = conf_.at("pgp_key_id");
@@ -152,6 +153,7 @@ std::pair<Bin::Packet, std::string> Bin::prepare_data(std::vector<uint8_t>&& dat
         pwd = random_pin();
         aesp->password = pwd;
     }
+
     auto cipher = crypto::Cipher::get(scheme, std::move(init_params));
 
     if (cipher) {

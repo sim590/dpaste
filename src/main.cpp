@@ -126,7 +126,8 @@ void print_help() {
               << std::endl;
 
     std::cout << "    --aes-encrypt" << std::endl
-              << "        Use AES scheme for encryption. A prompt for password will appear." << std::endl;
+              << "        Use AES scheme for encryption. Password is automatically saved in " << std::endl;
+    std::cout << "        the returned code (\"dpaste:XXXXXX\")." << std::endl;
 
     std::cout << "    --gpg-encrypt" << std::endl
               << "        Use GPG scheme for encryption/signing." << std::endl;
