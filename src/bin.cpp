@@ -63,12 +63,13 @@ std::string Bin::code_from_dpaste_uri(const std::string& uri) {
 std::tuple<std::string, uint32_t, std::string>
 Bin::parse_code_info(const std::string& code) {
     std::stringstream ns(code.substr(Bin::DPASTE_PIN_LEN, Bin::DPASTE_NPACKETS_LEN));
+    const auto PWD_LEN = crypto::AES::PIN_WITH_PASS_LEN - Bin::DPASTE_PIN_LEN - Bin::DPASTE_NPACKETS_LEN;
     uint32_t npackets;
     ns >> std::hex >> npackets;
     return {
         code.substr(0, Bin::DPASTE_PIN_LEN),
         npackets,
-        code.substr(Bin::DPASTE_PIN_LEN+Bin::DPASTE_NPACKETS_LEN)
+        code.substr(Bin::DPASTE_PIN_LEN+Bin::DPASTE_NPACKETS_LEN, PWD_LEN)
     };
 }
 
