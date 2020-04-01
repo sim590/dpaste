@@ -77,15 +77,15 @@ TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
 
 TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_dpaste_uri]") {
     PirateBinTester pt;
-    const std::string PIN = random_pin();
-    std::string pin_upper {PIN.begin(), PIN.end()};
+    const std::string CODE = random_code();
+    std::string pin_upper {CODE.begin(), CODE.end()};
     std::transform(pin_upper.begin(), pin_upper.end(), pin_upper.begin(), ::toupper);
 
     SECTION ( "good pins" ) {
-        auto gc1 = "dpaste:"+PIN;
-        auto gc2 = PIN;
-        REQUIRE ( pt.code_from_dpaste_uri(gc1) == PIN );
-        REQUIRE ( pt.code_from_dpaste_uri(gc2) == PIN );
+        auto gc1 = "dpaste:"+CODE;
+        auto gc2 = CODE;
+        REQUIRE ( pt.code_from_dpaste_uri(gc1) == CODE );
+        REQUIRE ( pt.code_from_dpaste_uri(gc2) == CODE );
 
         SECTION ( "good pin (upper case)" ) {
             auto gc3 = "dpaste:"+pin_upper;
@@ -96,10 +96,10 @@ TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_dpaste
         }
     }
     SECTION ( "bad pins" ) {
-        std::string bc1 = "DPASTE:"+PIN;
-        std::string bc2 = "DPaste:"+PIN;
-        REQUIRE ( pt.code_from_dpaste_uri(bc1) != PIN );
-        REQUIRE ( pt.code_from_dpaste_uri(bc2) != PIN );
+        std::string bc1 = "DPASTE:"+CODE;
+        std::string bc2 = "DPaste:"+CODE;
+        REQUIRE ( pt.code_from_dpaste_uri(bc1) != CODE );
+        REQUIRE ( pt.code_from_dpaste_uri(bc2) != CODE );
 
         SECTION ( "bad pins (upper case)" ) {
             auto bc3 = "DPASTE:"+pin_upper;

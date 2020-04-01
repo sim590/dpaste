@@ -44,7 +44,7 @@ int random_number() {
     return dist(rand_);
 }
 
-std::string random_pin() {
+std::string random_code() {
     const auto i = random_number();
     std::stringstream ss;
     ss << std::hex << i;

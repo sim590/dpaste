@@ -38,7 +38,7 @@ public:
 TEST_CASE("Node get/paste on DHT", "[Node][get][paste]") {
     PirateNodeTester pt;
 
-    const std::string PIN = random_pin();
+    const std::string PIN = random_code();
     std::vector<uint8_t> data = {0, 1, 2, 3, 4};
     dpaste::Node node {};
     node.run();
