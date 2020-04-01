@@ -57,7 +57,7 @@ Bin::Bin() {
 std::string Bin::code_from_dpaste_uri(const std::string& uri) {
     static const std::string DUP {DPASTE_URI_PREFIX};
     const auto p = uri.find(DUP);
-    return uri.substr(p != std::string::npos ? p+DUP.length() : 0);
+    return uri.substr(p != std::string::npos ? p+DUP.length() : 0, crypto::AES::PIN_WITH_PASS_LEN);
 }
 
 std::tuple<std::string, uint32_t, std::string>
