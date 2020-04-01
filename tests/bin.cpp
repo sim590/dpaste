@@ -41,8 +41,8 @@ public:
         return Bin::code_from_dpaste_uri(uri);
     }
 
-    std::vector<uint8_t> data_from_stream(std::stringstream&& input_stream) const {
-        return Bin::data_from_stream(std::forward<std::stringstream>(input_stream));
+    std::vector<uint8_t> data_from_stream(std::stringstream& input_stream, size_t count) const {
+        return Bin::data_from_stream(input_stream, count);
     }
 };
 
@@ -117,7 +117,7 @@ TEST_CASE("Bin conversion of stringstream to vector", "[Bin][data_from_stream]")
     const std::string DATA = "SOME DATA";
     std::stringstream ss(DATA);
     std::vector<uint8_t> d {DATA.begin(), DATA.end()};
-    REQUIRE ( pt.data_from_stream(std::move(ss)) == d );
+    REQUIRE ( pt.data_from_stream(ss, DATA.size()) == d );
 }
 
 } /* tests */
