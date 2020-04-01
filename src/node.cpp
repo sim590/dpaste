@@ -46,7 +46,7 @@ bool Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSim
         bool done, success_ {false};
         node_.put(hash, v, [&](bool success) {
             if (not success)
-                std::cerr << OPERATION_FAILURE_MSG << std::endl;
+                std::cerr << OPERATION_FAILURE_MSG << " (put)" << std::endl;
             else
                 success_ = true;
             {
@@ -69,7 +69,7 @@ void Node::get(const std::string& code, PastedCallback&& pcb) {
         },
         [pcb,blobs](bool success) {
             if (not success)
-                std::cerr << OPERATION_FAILURE_MSG << std::endl;
+                std::cerr << OPERATION_FAILURE_MSG << " (get)" << std::endl;
             else if (pcb)
                 pcb(*blobs);
         }, dht::Value::AllFilter(), dht::Where{}.userType(std::string(DPASTE_USER_TYPE))
