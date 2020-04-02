@@ -83,6 +83,22 @@ TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
     SECTION ( "pasting AES encrypted {0,1,2,3,4}" ) {
         test_paste_encrypted(bin, data);
     }
+    SECTION ( "pasting data (size over 64KB)" ) {
+        std::array<size_t, 4> sizes = {32 * 1024, 64 * 1024, 512 * 1024};
+        for (const auto& s : sizes) {
+            std::stringstream ss;
+            ss << s;
+            SECTION ( "trying for size of " + ss.str() + "B" ) {
+                std::vector<uint8_t> buffer(s);
+                SECTION ( "plain data" ) {
+                    test_paste(bin, buffer);
+                }
+                SECTION ( "AES encrypted data" ) {
+                    test_paste_encrypted(bin, buffer);
+                }
+            }
+        }
+    }
 }
 
 TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_dpaste_uri]") {
