@@ -22,6 +22,7 @@
 
 #include <catch.hpp>
 
+#include "code.h"
 #include "tests.h"
 #include "bin.h"
 
@@ -31,11 +32,11 @@ namespace tests {
 class PirateBinTester {
     #define YARRRRR
 public:
-    static const constexpr unsigned int LOCATION_CODE_LEN = 8;
-    static const constexpr char* DPASTE_URI_PREFIX = "dpaste:";
 
     PirateBinTester () {}
     virtual ~PirateBinTester () {}
+
+    static std::string dpaste_uri_prefix() { return Bin::DPASTE_URI_PREFIX; }
 
     std::string code_from_dpaste_uri(const std::string& uri) const {
         return Bin::code_from_dpaste_uri(uri);
@@ -46,32 +47,41 @@ public:
     }
 };
 
-TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
+void test_paste(Bin& bin, const std::vector<uint8_t>& data) {
     using pbt = PirateBinTester;
+    auto code = bin.paste(std::vector<uint8_t> {data}, {});
+    REQUIRE ( code.size() == pbt::dpaste_uri_prefix().size()+code::DPASTE_PIN_LEN+code::DPASTE_NPACKETS_LEN );
+
+    SECTION ( "getting pasted blob back from the DHT" ) {
+        auto rd = bin.get(std::move(code)).second;
+        std::vector<uint8_t> rdv {rd.begin(), rd.end()};
+        REQUIRE ( data == rdv );
+    }
+}
+
+void test_paste_encrypted(Bin& bin, const std::vector<uint8_t>& data) {
+    using pbt = PirateBinTester;
+    auto p = std::make_unique<dpaste::crypto::Parameters>();
+    p->emplace<crypto::AESParameters>();
+    auto code = bin.paste(std::vector<uint8_t> {data}, std::move(p));
+    REQUIRE ( code.size() == pbt::dpaste_uri_prefix().size()+code::DPASTE_PIN_LEN+code::DPASTE_NPACKETS_LEN+code::PASSWORD_LEN );
+
+    SECTION ( "getting pasted AES encrypted blob back from the DHT" ) {
+        auto rd = bin.get(std::move(code)).second;
+        std::vector<uint8_t> rdv {rd.begin(), rd.end()};
+        REQUIRE ( data == rdv );
+    }
+}
+
+TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
     std::vector<uint8_t> data = {0, 1, 2, 3, 4};
     Bin bin {};
     crypto::Cipher::init();
     SECTION ( "pasting data {0,1,2,3,4}" ) {
-        auto code = bin.paste(std::vector<uint8_t> {data}, {});
-        REQUIRE ( code.size() == pbt::LOCATION_CODE_LEN+sizeof(pbt::DPASTE_URI_PREFIX)-1 );
-
-        SECTION ( "getting pasted blob back from the DHT" ) {
-            auto rd = bin.get(std::move(code)).second;
-            std::vector<uint8_t> rdv {rd.begin(), rd.end()};
-            REQUIRE ( data == rdv );
-        }
+        test_paste(bin, data);
     }
     SECTION ( "pasting AES encrypted {0,1,2,3,4}" ) {
-        auto p = std::make_unique<dpaste::crypto::Parameters>();
-        p->emplace<crypto::AESParameters>();
-        auto code = bin.paste(std::vector<uint8_t> {data}, std::move(p));
-        REQUIRE ( code.size() == 2*pbt::LOCATION_CODE_LEN+sizeof(pbt::DPASTE_URI_PREFIX)-1 );
-
-        SECTION ( "getting pasted AES encrypted blob back from the DHT" ) {
-            auto rd = bin.get(std::move(code)).second;
-            std::vector<uint8_t> rdv {rd.begin(), rd.end()};
-            REQUIRE ( data == rdv );
-        }
+        test_paste_encrypted(bin, data);
     }
 }
 
