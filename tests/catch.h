@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 Simon Désaulniers
+ * Copyright © 2020 Simon Désaulniers
  * Author: Simon Désaulniers <sim.desaulniers@gmail.com>
  *
  * This file is part of dpaste.
@@ -18,33 +18,11 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <memory>
+#pragma once
 
-#include "cipher.h"
-#include "aescrypto.h"
+#define CATCH_CONFIG_PREFIX_ALL 0
 
-#include "catch.h"
+#include <catch.hpp>
 
-namespace dpaste {
-namespace tests {
-
-CATCH_TEST_CASE("AES process plain/cipher text", "[AES][processPlainText][processCipherText]") {
-    crypto::AES aes {};
-    std::vector<uint8_t> data {0,1,2,3,4};
-    auto pwd = "this_is_a_really_good_pwd";
-    auto p = std::make_shared<crypto::Parameters>();
-    auto pp = p;
-    p->emplace<crypto::AESParameters>(pwd);
-
-    auto ct = aes.processPlainText(data, std::move(p));
-    CATCH_REQUIRE ( not ct.empty() );
-
-    auto pt = aes.processCipherText(ct, std::move(pp));
-    CATCH_REQUIRE ( pt == data );
-}
-
-} /* tests */
-} /* dpaste */
-
-/* vim: set ts=4 sw=4 tw=120 et :*/
+/* vim: set sts=4 ts=4 sw=4 tw=120 et :*/
 

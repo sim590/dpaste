@@ -18,7 +18,7 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <catch.hpp>
+#include "catch.h"
 
 #include "tests.h"
 #include "node.h"
@@ -35,7 +35,7 @@ public:
     bool is_running(const dpaste::Node& n) const { return n.running_; }
 };
 
-TEST_CASE("Node get/paste on DHT", "[Node][get][paste]") {
+CATCH_TEST_CASE("Node get/paste on DHT", "[Node][get][paste]") {
     PirateNodeTester pt;
 
     const std::string PIN = random_code();
@@ -43,17 +43,17 @@ TEST_CASE("Node get/paste on DHT", "[Node][get][paste]") {
     dpaste::Node node {};
     node.run();
 
-    SECTION ( "pasting data {0,1,2,3,4}" ) {
-        REQUIRE ( node.paste(PIN, std::vector<uint8_t> {data}) );
+    CATCH_SECTION ( "pasting data {0,1,2,3,4}" ) {
+        CATCH_REQUIRE ( node.paste(PIN, std::vector<uint8_t> {data}) );
 
-        SECTION ( "getting pasted blob back from the DHT" ) {
+        CATCH_SECTION ( "getting pasted blob back from the DHT" ) {
             auto rd = node.get(PIN);
-            REQUIRE ( data == rd.front() );
+            CATCH_REQUIRE ( data == rd.front() );
         }
     }
 
     node.stop();
-    REQUIRE ( not pt.is_running(node) );
+    CATCH_REQUIRE ( not pt.is_running(node) );
 }
 
 } /* tests */
