@@ -29,6 +29,8 @@
 #include <msgpack.hpp>
 
 #include "bin.h"
+
+#include "code.h"
 #include "conf.h"
 #include "log.h"
 #include "gpgcrypto.h"
@@ -57,19 +59,18 @@ Bin::Bin() {
 std::string Bin::code_from_dpaste_uri(const std::string& uri) {
     static const std::string DUP {DPASTE_URI_PREFIX};
     const auto p = uri.find(DUP);
-    return uri.substr(p != std::string::npos ? p+DUP.length() : 0, crypto::AES::PIN_WITH_PASS_LEN);
+    return uri.substr(p != std::string::npos ? p+DUP.length() : 0, code::PIN_WITH_PASS_LEN);
 }
 
 std::tuple<std::string, uint32_t, std::string>
 Bin::parse_code_info(const std::string& code) {
-    std::stringstream ns(code.substr(Bin::DPASTE_PIN_LEN, Bin::DPASTE_NPACKETS_LEN));
-    const auto PWD_LEN = crypto::AES::PIN_WITH_PASS_LEN - Bin::DPASTE_PIN_LEN - Bin::DPASTE_NPACKETS_LEN;
+    std::stringstream ns(code.substr(code::DPASTE_PIN_LEN, code::DPASTE_NPACKETS_LEN));
     uint32_t npackets;
     ns >> std::hex >> npackets;
     return {
-        code.substr(0, Bin::DPASTE_PIN_LEN),
+        code.substr(0, code::DPASTE_PIN_LEN),
         npackets,
-        code.substr(Bin::DPASTE_PIN_LEN+Bin::DPASTE_NPACKETS_LEN, PWD_LEN)
+        code.substr(code::DPASTE_PIN_LEN+code::DPASTE_NPACKETS_LEN, code::PASSWORD_LEN)
     };
 }
 
@@ -171,7 +172,7 @@ std::vector<uint8_t> Bin::data_from_stream(std::stringstream& input_stream, cons
 }
 
 std::string Bin::code_from_pin(uint32_t pin) {
-    auto pin_s = hexStrFromInt(pin, Bin::DPASTE_PIN_LEN);
+    auto pin_s = hexStrFromInt(pin, code::DPASTE_PIN_LEN);
     std::transform(pin_s.begin(), pin_s.end(), pin_s.begin(), ::toupper);
     return pin_s;
 }
@@ -262,7 +263,7 @@ Bin::paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>
             return {};
     }
 
-    return DPASTE_URI_PREFIX+code_from_pin(pin)+hexStrFromInt(shift, Bin::DPASTE_NPACKETS_LEN)+pwd;
+    return DPASTE_URI_PREFIX+code_from_pin(pin)+hexStrFromInt(shift, code::DPASTE_NPACKETS_LEN)+pwd;
 }
 
 msgpack::object*

@@ -47,14 +47,6 @@ class Bin {
 public:
 
     /**
-     * Number of bytes in a dpaste code accounting for the number of packets the
-     * file was split into
-     */
-    static const constexpr unsigned int DPASTE_NPACKETS_LEN {2};
-    /**
-     * Number of bytes in a dpaste code accounting for the location PIN. */
-    static const constexpr unsigned int DPASTE_PIN_LEN {8};
-    /**
      * Maximal size to be read from the input stream and pasted on the DHT
      * (possibly split in several packets).
      */
