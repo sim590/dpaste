@@ -46,7 +46,7 @@ public:
         return Bin::parse_code_info(uri);
     }
 
-    std::string code_from_dpaste_uri(const std::string& uri) const {
+    static std::string code_from_dpaste_uri(const std::string& uri) {
         return Bin::code_from_dpaste_uri(uri);
     }
 
@@ -111,7 +111,6 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
 
 CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_dpaste_uri][parse_code_info]") {
     using pbt = PirateBinTester;
-    PirateBinTester pt;
     const uint32_t NPACKETS     = (uint32_t)random_number() % 256;
     const std::string NPACKETSS = pbt::hexStrFromInt(NPACKETS, 2);
     const std::string LCODE     = random_code();
@@ -132,18 +131,18 @@ CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_
         auto gc1 = "dpaste:"+CODE;
         auto gc2 = CODE;
         auto gc3 = "dpaste:"+CODE+PWD;
-        CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc1) == CODE );
-        CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc2) == CODE );
-        CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc3) == CODE+PWD );
+        CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc1) == CODE );
+        CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc2) == CODE );
+        CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc3) == CODE+PWD );
 
         CATCH_SECTION ( "good pin (upper case)" ) {
             auto gc4 = "dpaste:"+pin_upper;
             auto gc5 = pin_upper;
             auto gc6 = "dpaste:"+pin_upper+PWD;
 
-            CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc4) == pin_upper );
-            CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc5) == pin_upper );
-            CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc6) == pin_upper+PWD );
+            CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc4) == pin_upper );
+            CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc5) == pin_upper );
+            CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc6) == pin_upper+PWD );
         }
         CATCH_SECTION ( "testing Bin::parse_code_info" ) {
             test_code_parsing(CODE, "");
@@ -155,15 +154,15 @@ CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_
     CATCH_SECTION ( "bad pins" ) {
         std::string bc1 = "DPASTE:"+CODE;
         std::string bc2 = "DPaste:"+CODE;
-        CATCH_REQUIRE ( pt.code_from_dpaste_uri(bc1) != CODE );
-        CATCH_REQUIRE ( pt.code_from_dpaste_uri(bc2) != CODE );
+        CATCH_REQUIRE ( pbt::code_from_dpaste_uri(bc1) != CODE );
+        CATCH_REQUIRE ( pbt::code_from_dpaste_uri(bc2) != CODE );
 
         CATCH_SECTION ( "bad pins (upper case)" ) {
             auto bc3 = "DPASTE:"+pin_upper;
             auto bc4 = "DPaste:"+pin_upper;
 
-            CATCH_REQUIRE ( pt.code_from_dpaste_uri(bc3) != pin_upper );
-            CATCH_REQUIRE ( pt.code_from_dpaste_uri(bc4) != pin_upper );
+            CATCH_REQUIRE ( pbt::code_from_dpaste_uri(bc3) != pin_upper );
+            CATCH_REQUIRE ( pbt::code_from_dpaste_uri(bc4) != pin_upper );
         }
     }
 }
