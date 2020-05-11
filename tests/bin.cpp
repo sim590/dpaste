@@ -104,21 +104,26 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
 CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_dpaste_uri]") {
     PirateBinTester pt;
     const std::string CODE = random_code();
+    const std::string PWD       = random_code();
     std::string pin_upper {CODE.begin(), CODE.end()};
     std::transform(pin_upper.begin(), pin_upper.end(), pin_upper.begin(), ::toupper);
 
     CATCH_SECTION ( "good pins" ) {
         auto gc1 = "dpaste:"+CODE;
         auto gc2 = CODE;
+        auto gc3 = "dpaste:"+CODE+PWD;
         CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc1) == CODE );
         CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc2) == CODE );
+        CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc3) == CODE+PWD );
 
         CATCH_SECTION ( "good pin (upper case)" ) {
             auto gc3 = "dpaste:"+pin_upper;
             auto gc4 = pin_upper;
+            auto gc6 = "dpaste:"+pin_upper+PWD;
 
             CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc3) == pin_upper );
             CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc4) == pin_upper );
+            CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc6) == pin_upper+PWD );
         }
     }
     CATCH_SECTION ( "bad pins" ) {
