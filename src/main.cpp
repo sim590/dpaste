@@ -102,7 +102,7 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
 }
 
 void print_help() {
-    std::cout << PACKAGE_NAME << " -- A simple pastebin for light values (max 64KB)"
+    std::cout << PACKAGE_NAME << " -- A simple pastebin (for values of size up to 2MB)"
                               << " using OpenDHT distributed hash table." << std::endl << std::endl;
 
     std::cout << "SYNOPSIS" << std::endl
