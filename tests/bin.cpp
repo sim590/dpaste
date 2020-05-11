@@ -38,6 +38,10 @@ public:
 
     static std::string dpaste_uri_prefix() { return Bin::DPASTE_URI_PREFIX; }
 
+    static std::string hexStrFromInt(uint32_t i, size_t len) {
+        return Bin::hexStrFromInt(i, len);
+    }
+
     std::string code_from_dpaste_uri(const std::string& uri) const {
         return Bin::code_from_dpaste_uri(uri);
     }
@@ -103,7 +107,10 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
 
 CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_dpaste_uri]") {
     PirateBinTester pt;
-    const std::string CODE = random_code();
+    const uint32_t NPACKETS     = (uint32_t)random_number() % 256;
+    const std::string NPACKETSS = pbt::hexStrFromInt(NPACKETS, 2);
+    const std::string LCODE     = random_code();
+    const std::string CODE      = LCODE + NPACKETSS;
     const std::string PWD       = random_code();
     std::string pin_upper {CODE.begin(), CODE.end()};
     std::transform(pin_upper.begin(), pin_upper.end(), pin_upper.begin(), ::toupper);
