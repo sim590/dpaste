@@ -42,6 +42,10 @@ public:
         return Bin::hexStrFromInt(i, len);
     }
 
+    static std::tuple<std::string, uint32_t, std::string> parse_code_info(const std::string& uri) {
+        return Bin::parse_code_info(uri);
+    }
+
     std::string code_from_dpaste_uri(const std::string& uri) const {
         return Bin::code_from_dpaste_uri(uri);
     }
@@ -105,7 +109,8 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
     }
 }
 
-CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_dpaste_uri]") {
+CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_dpaste_uri][parse_code_info]") {
+    using pbt = PirateBinTester;
     PirateBinTester pt;
     const uint32_t NPACKETS     = (uint32_t)random_number() % 256;
     const std::string NPACKETSS = pbt::hexStrFromInt(NPACKETS, 2);
@@ -114,6 +119,14 @@ CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_
     const std::string PWD       = random_code();
     std::string pin_upper {CODE.begin(), CODE.end()};
     std::transform(pin_upper.begin(), pin_upper.end(), pin_upper.begin(), ::toupper);
+
+    auto test_code_parsing = [&LCODE,&NPACKETS](const std::string& unparsed_code, const std::string& pwd) {
+        const auto code_tuple1 = pbt::parse_code_info(unparsed_code);
+
+        CATCH_REQUIRE ( std::get<0>(code_tuple1) == LCODE );
+        CATCH_REQUIRE ( std::get<1>(code_tuple1) == NPACKETS );
+        CATCH_REQUIRE ( std::get<2>(code_tuple1) == pwd );
+    };
 
     CATCH_SECTION ( "good pins" ) {
         auto gc1 = "dpaste:"+CODE;
@@ -124,13 +137,19 @@ CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_
         CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc3) == CODE+PWD );
 
         CATCH_SECTION ( "good pin (upper case)" ) {
-            auto gc3 = "dpaste:"+pin_upper;
-            auto gc4 = pin_upper;
+            auto gc4 = "dpaste:"+pin_upper;
+            auto gc5 = pin_upper;
             auto gc6 = "dpaste:"+pin_upper+PWD;
 
-            CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc3) == pin_upper );
             CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc4) == pin_upper );
+            CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc5) == pin_upper );
             CATCH_REQUIRE ( pt.code_from_dpaste_uri(gc6) == pin_upper+PWD );
+        }
+        CATCH_SECTION ( "testing Bin::parse_code_info" ) {
+            test_code_parsing(CODE, "");
+        }
+        CATCH_SECTION ( "testing Bin::parse_code_info with password" ) {
+            test_code_parsing(CODE+PWD, PWD);
         }
     }
     CATCH_SECTION ( "bad pins" ) {
