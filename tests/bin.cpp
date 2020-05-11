@@ -167,6 +167,14 @@ CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_
     }
 }
 
+CATCH_TEST_CASE("Bin conversion to hex string from int", "[Bin][hexStrFromInt]") {
+    using pbt = PirateBinTester;
+    CATCH_REQUIRE ( pbt::hexStrFromInt(255, 2) == "ff" );
+    CATCH_REQUIRE ( pbt::hexStrFromInt(121, 2) == "79" );
+    CATCH_REQUIRE ( pbt::hexStrFromInt(0, 2) == "00" );
+}
+
+
 CATCH_TEST_CASE("Bin conversion of stringstream to vector", "[Bin][data_from_stream]") {
     PirateBinTester pt;
 
