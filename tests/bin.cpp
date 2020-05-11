@@ -124,7 +124,6 @@ CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_
     CATCH_SECTION ( "bad pins" ) {
         std::string bc1 = "DPASTE:"+CODE;
         std::string bc2 = "DPaste:"+CODE;
-        std::string gc3 = "dpaste:" + CODE + std::string {10};
         CATCH_REQUIRE ( pt.code_from_dpaste_uri(bc1) != CODE );
         CATCH_REQUIRE ( pt.code_from_dpaste_uri(bc2) != CODE );
 
