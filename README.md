@@ -1,7 +1,6 @@
 # dpaste
 
 A simple pastebin for light values (max 64KB) using OpenDHT distributed hash table.
-
 ## Example
 
 Let a file `A.md` you want to share.
@@ -20,7 +19,7 @@ $ dpaste -g dpaste:74236E62
 ## Encryption
 
 One can encrypt his document using the option `--aes-encrypt` or
-`--gpg-encrypt -r {recipient}`. In the former case, AES-CBC is used and in
+`--gpg-encrypt -r {recipient}`. In the former case, AES-GCM is used and in
 the latter it is simple GPG encryption. One can also *sign-then-encrypt* his
 message by adding the flag `-s` (a working gpg configuration needs to be found
 on the system). If both `--aes-encrypt` and `--gpg-encrypt` (or `-s`) options
@@ -36,7 +35,7 @@ password is appended to the location code used to index on the DHT. For e.g.:
 
 ```sh
 $ dpaste --aes-encrypt < ${some_file}
-DPASTE: Encrypting (aes-cbc) data...
+DPASTE: Encrypting (aes-gcm) data...
 DPASTE: Pasting data...
 dpaste:B79F2F91C811D5DC
 ```
