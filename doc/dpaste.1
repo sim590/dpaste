@@ -35,16 +35,24 @@ Shows the version of the program.
 Specifies the code \fIcode\fP used to recover the file on the DHT.
 
 .TP
-\fB-e\fP \fIrecipient\fP, \fB--encrypt\fP \fIrecipient\fP
-Specifies wether the message should be encrypted using the OpenPGP protocol. If
-so, \fIrecipient\fP is the recipient to encrypt message to. This can be any
-string that GPG will correctly parse (fingerprint, email, ...).
+\fB--aes-encrypt\fP
+Use AES scheme for encryption. Password is automatically saved in the returned
+code ("dpaste:XXXXXX").
+
+.TP
+\fB--gpg-encrypt\fP
+Use GPG scheme for encryption.
+
+.TP
+\fB-r\fP \fIrecipient\fP, \fB--recipients\fP \fIrecipient\fP
+Specify the list of recipients to use for GPG encryption (--gpg--encrypt). Use
+\fB-r\fP multiple times to specify a list of recipients.
 
 .TP
 \fB-s\fP, \fB--sign\fP
 Tells wether message should be signed using the user's GPG key. The key has to
-be configured through the configuration file
-(\fB$XDG_CONFIG_DIR/dpaste.conf\fP).
+be configured through the configuration file (\fB$XDG_CONFIG_DIR/dpaste.conf\fP,
+keyword: \fBpgp_key_id\fP).
 
 .TP
 \fB--no-decrypt\fP
