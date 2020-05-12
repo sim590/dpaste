@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 project(dpaste)
-set(dpaste_VERSION 0.4.0)
+set(dpaste_VERSION 0.4.1)
 add_definitions(-DVERSION="${dpaste_VERSION}")
 add_definitions(-DPACKAGE_NAME="dpaste")
 
