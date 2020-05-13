@@ -97,12 +97,19 @@ not likely to be "down".
 
 ## Roadmap
 
-- Add support for values with size greater than 64Ko (splitting values across
-  multiple locations);
+- Add support for values with size greater than 64KiB (splitting values across
+  multiple locations, see #17);
+- Support for multi-lingual interface (--help, info/debug messages, see #18);
+- Support for longer paste life time (OpenDHT's default is 10 minutes, see #19);
+- Switch from the currently used [small python REST API server script][pyserver] to
+  OpenDHT's proxy (see #20);
+- Improve the logging code (with dedicated library?);
 - ~~Password based encryption (AES using gnutls)~~;
 - ~~Add user configuration file system;~~
 - ~~Support RSA encrypt/sign using user's GPG key;~~
 - ~~Support running the DHT node as service for executing dpaste operations.~~
+
+[pyserver]: https://github.com/savoirfairelinux/opendht/blob/459c1344aac37519ccdf19aebff56027771d2e72/python/tools/http_server.py
 
 ## Author
 
