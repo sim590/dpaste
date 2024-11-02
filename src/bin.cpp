@@ -120,7 +120,7 @@ std::vector<uint8_t> Bin::data_from_stream(std::stringstream&& input_stream) {
 std::string Bin::random_pin() {
     static std::uniform_int_distribution<uint32_t> dist;
     static std::mt19937_64 rand_;
-    static dht::crypto::random_device rdev;
+    static std::random_device rdev;
     static std::seed_seq seed {rdev(), rdev()};
     static bool initialized = false;
     if (not initialized)
