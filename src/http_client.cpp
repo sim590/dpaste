@@ -22,11 +22,12 @@
 
 #include <curlpp/cURLpp.hpp>
 #include <curlpp/Easy.hpp>
-#include <curlpp/Options.hpp>
 #include <curlpp/Exception.hpp>
 #include <curlpp/Infos.hpp>
 #include <nlohmann/json.hpp>
 #include <b64/decode.h>
+
+#include "curlpp/Options.hpp"
 
 #include "http_client.h"
 #include "node.h"
