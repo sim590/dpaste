@@ -213,7 +213,7 @@ namespace options
 	typedef curlpp::OptionTrait<std::string, CURLOPT_POSTFIELDS> PostFields;
 	typedef curlpp::OptionTrait<long, CURLOPT_POSTFIELDSIZE> PostFieldSize;
 	typedef curlpp::OptionTrait<curl_off_t, CURLOPT_POSTFIELDSIZE_LARGE> PostFieldSizeLarge;
-	typedef curlpp::OptionTrait<curlpp::Forms, CURLOPT_HTTPPOST> HttpPost;
+	typedef curlpp::OptionTrait<curlpp::Forms, CURLOPT_MIMEPOST> MimePost;
 	typedef curlpp::OptionTrait<std::string, CURLOPT_REFERER> Referer;
 	typedef curlpp::OptionTrait<std::string, CURLOPT_USERAGENT> UserAgent;
 	typedef curlpp::OptionTrait<std::list<std::string>, CURLOPT_HTTPHEADER> HttpHeader;
