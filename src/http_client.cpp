@@ -25,7 +25,7 @@
 #include "curlpp/Options.hpp"
 #include <curlpp/Exception.hpp>
 #include <curlpp/Infos.hpp>
-#include <nlohmann/json.hpp>
+#include <json.hpp>
 #include <b64/decode.h>
 
 #include "http_client.h"
@@ -77,7 +77,7 @@ bool HttpClient::put(const std::string& code, const std::string& data) const {
             curlpp::Forms form_parts;
             form_parts.push_back(new curlpp::FormParts::Content("user_type", dpaste::Node::DPASTE_USER_TYPE));
             form_parts.push_back(new curlpp::FormParts::Content("data", data));
-            req.setOpt(new curlpp::options::MimePost(form_parts));
+            req.setOpt(new curlpp::options::HttpPost(form_parts));
         }
 
         try {
