@@ -19,7 +19,7 @@ AC_PROG_CXX
 AC_PROG_RANLIB
 
 PKG_CHECK_MODULES([OpenDHT], [opendht >= 1.2])
-PKG_CHECK_MODULES([CURLPP], [curlpp >= 0.8.1])
+PKG_CHECK_MODULES([CURLPP], [curlpp])
 PKG_CHECK_MODULES([GLIBMM], [glibmm-2.4])
 
 # dpaste (CPP/LD)FLAGS common with different binaries (particularly tests)
