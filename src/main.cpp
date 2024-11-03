@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017 Simon Désaulniers
+ * Copyright © 2017-2020 Simon Désaulniers
  * Author: Simon Désaulniers <sim.desaulniers@gmail.com>
  *
  * This file is part of dpaste.
@@ -102,7 +102,7 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
 }
 
 void print_help() {
-    std::cout << PACKAGE_NAME << " -- A simple pastebin for light values (max 64KB)"
+    std::cout << PACKAGE_NAME << " -- A simple pastebin (for values of size up to 2MiB)"
                               << " using OpenDHT distributed hash table." << std::endl << std::endl;
 
     std::cout << "SYNOPSIS" << std::endl

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2020 Simon Désaulniers
+ * Copyright © 2020 Simon Désaulniers
  * Author: Simon Désaulniers <sim.desaulniers@gmail.com>
  *
  * This file is part of dpaste.
@@ -20,30 +20,9 @@
 
 #pragma once
 
-#include <cstdint>
-#include <string>
-#include <vector>
+#define CATCH_CONFIG_PREFIX_ALL 0
 
-#include "cipher.h"
+#include <catch2/catch.hpp>
 
-namespace dpaste {
-namespace crypto {
-
-class AES : public Cipher {
-public:
-    AES() {}
-    virtual ~AES () {}
-
-    std::vector<uint8_t>
-        processPlainText(std::vector<uint8_t> plain_text, std::shared_ptr<Parameters>&& params) override;
-    std::vector<uint8_t>
-        processCipherText(std::vector<uint8_t> cipher_text, std::shared_ptr<Parameters>&& params) override;
-private:
-    std::string getPassword(const std::shared_ptr<Parameters>& params) const;
-};
-
-} /* crypto */
-} /* dpaste */
-
-/* vim:set et sw=4 ts=4 tw=120: */
+/* vim: set sts=4 ts=4 sw=4 tw=120 et :*/
 
