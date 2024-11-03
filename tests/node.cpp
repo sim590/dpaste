@@ -18,10 +18,10 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "catch.h"
-
-#include "tests.h"
 #include "node.h"
+
+#include "catch.h"
+#include "tests.h"
 
 namespace dpaste {
 namespace tests {

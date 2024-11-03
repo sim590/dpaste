@@ -111,7 +111,7 @@ private:
      */
     struct Random {
         Random() {
-            dht::crypto::random_device rdev;
+            std::random_device rdev;
             std::seed_seq seed {rdev(), rdev()};
             gen.seed(seed);
         }

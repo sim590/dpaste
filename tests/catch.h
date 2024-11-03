@@ -22,7 +22,7 @@
 
 #define CATCH_CONFIG_PREFIX_ALL 0
 
-#include <catch.hpp>
+#include <catch2/catch.hpp>
 
 /* vim: set sts=4 ts=4 sw=4 tw=120 et :*/
 

@@ -21,7 +21,8 @@
 #include <random>
 
 #define CATCH_CONFIG_MAIN
-#include <catch.hpp>
+
+#include "catch.h"
 
 namespace dpaste {
 namespace tests {

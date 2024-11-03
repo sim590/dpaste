@@ -1,4 +1,4 @@
-AC_INIT(dpaste, 0.3.3)
+AC_INIT(dpaste, 0.4.0)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h])
@@ -37,10 +37,7 @@ AC_ARG_ENABLE([tests], AS_HELP_STRING([--enable-tests], [Enables unit tests comp
 AM_CONDITIONAL([DPASTE_TEST], [test "x$enable_tests" = "xyes"])
 AM_COND_IF([DPASTE_TEST],
            [
-            AC_CHECK_HEADERS([catch.hpp catch/catch.hpp],
-              [],
-              AC_MSG_ERROR([catch2 (https://github.com/catchorg/Catch2) is needed for compiling with --enable-tests])
-            )
+            PKG_CHECK_MODULES([CATCH2], [catch2])
             AC_DEFINE([DPASTE_TEST], [1], [Unit tests])
             AC_CONFIG_FILES([tests/Makefile])
            ])

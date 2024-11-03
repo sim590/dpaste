@@ -21,10 +21,10 @@
 #include <algorithm>
 
 #include "code.h"
-#include "tests.h"
 #include "bin.h"
 
 #include "catch.h"
+#include "tests.h"
 
 namespace dpaste {
 namespace tests {

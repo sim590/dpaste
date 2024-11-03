@@ -33,12 +33,12 @@ std::string AES::getPassword(const std::shared_ptr<Parameters>& params) const {
 }
 
 std::vector<uint8_t> AES::processPlainText(std::vector<uint8_t> plain_text, std::shared_ptr<Parameters>&& params) {
-    DPASTE_MSG("Encrypting (aes-cbc) data...");
+    DPASTE_MSG("Encrypting (aes-gcm) data...");
     return dht::crypto::aesEncrypt(plain_text, getPassword(params));
 }
 
 std::vector<uint8_t> AES::processCipherText(std::vector<uint8_t> cipher_text, std::shared_ptr<Parameters>&& params) {
-    DPASTE_MSG("Decrypting (aes-cbc)...");
+    DPASTE_MSG("Decrypting (aes-gcm)...");
     return dht::crypto::aesDecrypt(cipher_text, getPassword(params));
 }
 

@@ -30,7 +30,7 @@
 #include <opendht/rng.h>
 #include <opendht/callbacks.h>
 
-#ifdef HAVE_CONFG_H
+#ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 

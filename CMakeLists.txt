@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 project(dpaste)
-set(dpaste_VERSION 0.3.3)
+set(dpaste_VERSION 0.4.0)
 add_definitions(-DVERSION="${dpaste_VERSION}")
 add_definitions(-DPACKAGE_NAME="dpaste")
 
@@ -21,7 +21,7 @@ find_package(glibmm REQUIRED)
 find_package(B64 REQUIRED)
 find_package(Gpgme)
 find_package(Threads REQUIRED)
-find_package(nlohmann_json 2.1.1 REQUIRED)
+find_package(nlohmann_json 3 REQUIRED)
 
 #####################################
 #  dpaste headers and source files  #
@@ -53,7 +53,7 @@ list(APPEND dpaste_SOURCES
 #################################
 include_directories(${CURLPP_INCLUDE_DIRS} ${glibmm_INCLUDE_DIRS} ${B64_INCLUDE_DIRS} ${GPGME_INCLUDE_DIRS})
 add_executable(dpaste ${dpaste_SOURCES} ${dpaste_HEADERS})
-target_link_libraries(dpaste LINK_PUBLIC opendht -lgnutls -lnettle -largon2 -lpthread ${CURLPP_LIBRARIES} ${glibmm_LIBRARIES} ${B64_LIBRARIES} -lgpgmepp ${GPGME_VANILLA_LIBRARIES})
+target_link_libraries(dpaste LINK_PUBLIC -lopendht -lgnutls -lnettle -largon2 -lpthread ${CURLPP_LIBRARIES} ${glibmm_LIBRARIES} ${B64_LIBRARIES} -lgpgmepp ${GPGME_VANILLA_LIBRARIES})
 
 #####################
 #  install targets  #
