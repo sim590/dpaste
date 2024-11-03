@@ -16,7 +16,7 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 #  Find required packages  #
 ############################
 find_package(opendht 1.2.0 REQUIRED)
-find_package(CURLpp REQUIRED)
+find_package(CURLpp 0.8.1 REQUIRED)
 find_package(glibmm REQUIRED)
 find_package(B64 REQUIRED)
 find_package(Gpgme)
