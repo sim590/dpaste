@@ -149,9 +149,6 @@ namespace options
 	#endif // CURLPP_ALLOW_NOT_AVAILABLE
 	#endif // LIBCURL_VERSION_NUM
 
-	typedef curlpp::OptionTrait<curlpp::types::ProgressFunctionFunctor, CURLOPT_PROGRESSFUNCTION>
-		ProgressFunction;
-
 	typedef curlpp::OptionTrait<curlpp::types::WriteFunctionFunctor, CURLOPT_HEADERFUNCTION>
 		HeaderFunction;
 
@@ -185,7 +182,6 @@ namespace options
 	typedef curlpp::OptionTrait<bool, CURLOPT_HTTPPROXYTUNNEL> HttpProxyTunnel;
 	typedef curlpp::OptionTrait<std::string, CURLOPT_INTERFACE> Interface;
 	typedef curlpp::OptionTrait<long, CURLOPT_DNS_CACHE_TIMEOUT> DnsCacheTimeout;
-	typedef curlpp::OptionTrait<bool, CURLOPT_DNS_USE_GLOBAL_CACHE> DnsUseGlobalCache;
 	typedef curlpp::OptionTrait<long, CURLOPT_BUFFERSIZE> BufferSize;
 	typedef curlpp::OptionTrait<long, CURLOPT_PORT> Port;
 
@@ -212,7 +208,6 @@ namespace options
 	typedef curlpp::OptionTrait<bool, CURLOPT_FOLLOWLOCATION> FollowLocation;
 	typedef curlpp::OptionTrait<bool, CURLOPT_UNRESTRICTED_AUTH> UnrestrictedAuth;
 	typedef curlpp::OptionTrait<long, CURLOPT_MAXREDIRS> MaxRedirs;
-	typedef curlpp::OptionTrait<bool, CURLOPT_PUT> Put;
 	typedef curlpp::OptionTrait<bool, CURLOPT_UPLOAD> Upload;
 	typedef curlpp::OptionTrait<bool, CURLOPT_POST> Post;
 	typedef curlpp::OptionTrait<std::string, CURLOPT_POSTFIELDS> PostFields;
@@ -295,8 +290,6 @@ namespace options
 	typedef curlpp::OptionTrait<bool, CURLOPT_SSL_VERIFYPEER> SslVerifyPeer;
 	typedef curlpp::OptionTrait<std::string, CURLOPT_CAINFO> CaInfo;
 	typedef curlpp::OptionTrait<std::string, CURLOPT_CAPATH> CaPath;
-	typedef curlpp::OptionTrait<std::string, CURLOPT_RANDOM_FILE> RandomFile;
-	typedef curlpp::OptionTrait<std::string, CURLOPT_EGDSOCKET> EgdSocket;
 	typedef curlpp::OptionTrait<long, CURLOPT_SSL_VERIFYHOST> SslVerifyHost;
 	typedef curlpp::OptionTrait<std::string, CURLOPT_SSL_CIPHER_LIST> SslCipherList;
 
