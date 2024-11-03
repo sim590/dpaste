@@ -25,7 +25,7 @@
 #include <curlpp/Options.hpp>
 #include <curlpp/Exception.hpp>
 #include <curlpp/Infos.hpp>
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 #include <b64/decode.h>
 
 #include "http_client.h"
