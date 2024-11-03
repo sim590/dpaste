@@ -18,7 +18,7 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <catch.hpp>
+#include <catch2/catch.hpp>
 
 #include "tests.h"
 #include "node.h"
