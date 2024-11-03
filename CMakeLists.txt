@@ -21,7 +21,7 @@ find_package(glibmm REQUIRED)
 find_package(B64 REQUIRED)
 find_package(Gpgme)
 find_package(Threads REQUIRED)
-find_package(nlohmann_json 2.1.1 REQUIRED)
+find_package(nlohmann_json 3 REQUIRED)
 
 #####################################
 #  dpaste headers and source files  #
