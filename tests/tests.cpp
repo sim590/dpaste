@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 Simon Désaulniers
+ * Copyright © 2018-2020 Simon Désaulniers
  * Author: Simon Désaulniers <sim.desaulniers@gmail.com>
  *
  * This file is part of dpaste.
@@ -21,7 +21,8 @@
 #include <random>
 
 #define CATCH_CONFIG_MAIN
-#include <catch2/catch.hpp>
+
+#include "catch.h"
 
 namespace dpaste {
 namespace tests {
@@ -44,7 +45,7 @@ int random_number() {
     return dist(rand_);
 }
 
-std::string random_pin() {
+std::string random_code() {
     const auto i = random_number();
     std::stringstream ss;
     ss << std::hex << i;

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017 Simon Désaulniers
+ * Copyright © 2017-2020 Simon Désaulniers
  * Author: Simon Désaulniers <sim.desaulniers@gmail.com>
  *
  * This file is part of dpaste.
@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <vector>
 #include <string>
 
 namespace dpaste {
@@ -29,7 +30,28 @@ public:
     HttpClient (std::string host, long port) : host(host), port(port) {}
     virtual ~HttpClient () {}
 
-    std::string get(const std::string& code) const;
+    /**
+     * Tells if the server responds to requests.
+     */
+    bool isAvailable() const;
+
+    /**
+     * Send a GET request to the REST server.
+     *
+     * @param code  The location code.
+     *
+     * @return A vector of the values recovered from the DHT by the REST server.
+     */
+    std::vector<std::string> get(const std::string& code) const;
+
+    /**
+     * Send a PUT request to the REST server.
+     *
+     * @param code  The location code.
+     * @param data  The data to publish.
+     *
+     * @return True if the server accepted and completed the request, false otherwise.
+     */
     bool put(const std::string& code, const std::string& data) const;
 
 private:

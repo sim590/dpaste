@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 Simon Désaulniers
+ * Copyright © 2018-2020 Simon Désaulniers
  * Author: Simon Désaulniers <sim.desaulniers@gmail.com>
  *
  * This file is part of dpaste.
@@ -18,11 +18,13 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string>
+
 namespace dpaste {
 namespace tests {
 
 int random_number();
-std::string random_pin();
+std::string random_code();
 
 } /* tests */
 } /* dpaste */
