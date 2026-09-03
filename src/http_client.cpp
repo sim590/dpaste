@@ -19,6 +19,7 @@
  */
 
 #include <fstream>
+#include <cstdint>
 
 #include <curlpp/cURLpp.hpp>
 #include <curlpp/Easy.hpp>
