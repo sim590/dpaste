@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.20)
 project(dpaste)
 set(dpaste_VERSION 0.4.1)
 add_definitions(-DVERSION="${dpaste_VERSION}")
@@ -61,4 +61,3 @@ target_link_libraries(dpaste LINK_PUBLIC -lopendht -lgnutls -lnettle -largon2 -l
 install(TARGETS dpaste DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
 
 #  vim: set ts=4 sw=4 tw=120 noet :
-
