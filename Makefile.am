@@ -10,6 +10,9 @@ endif
 
 dist_man1_MANS = doc/dpaste.1
 
+systemd_userdir = $(prefix)/lib/systemd/user
+systemd_user_DATA = systemd/dpaste-dhtnode.service
+
 ACLOCAL_AMFLAGS = -I m4
 
 DOC_FILES = \
@@ -18,7 +21,8 @@ DOC_FILES = \
 			COPYING
 
 EXTRA_DIST = \
-			$(DOC_FILES)
+			$(DOC_FILES) \
+			systemd/dpaste-dhtnode.service
 
 test: check
 if DPASTE_TEST
@@ -26,4 +30,3 @@ if DPASTE_TEST
 endif
 
 #  vim: set ts=4 sw=4 tw=120 noet :
-

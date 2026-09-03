@@ -71,6 +71,35 @@ $ make
 
 You'll then find the binary `dpaste` under `build` directory.
 
+### Running the local OpenDHT proxy
+
+dpaste sends HTTP requests to the OpenDHT `DhtProxyServer` at
+ `127.0.0.1:6509` first. If the proxy is unavailable, it falls back to a
+transient local DHT node. The proxy avoids creating a DHT node for every
+invocation and retains routing state between commands. OpenDHT must still
+locate the nodes responsible for each random paste key, so this does not
+guarantee an instant paste.
+
+The optional systemd user unit can be installed with either build system (as
+part of the normal install):
+
+```sh
+$ make install                 # Autotools
+# or: cmake --install build    # CMake
+$ systemctl --user daemon-reload
+$ systemctl --user enable --now dpaste-dhtnode.service
+$ systemctl --user status dpaste-dhtnode.service
+```
+
+Verify that the loopback proxy is reachable with:
+
+```sh
+$ curl --fail --max-time 5 http://127.0.0.1:6509/node/info
+```
+
+The command returns information about the local node. The unit runs `dhtnode`
+in the foreground and binds its proxy to loopback only.
+
 ## Package
 
 Archlinux AUR: https://aur.archlinux.org/packages/dpaste/
@@ -115,4 +144,3 @@ not likely to be "down".
 
 - Simon Désaulniers <sim.desaulniers@gmail.com>
 - Adrien Béraud <adrien.beraud@savoirfairelinux.com>
-
