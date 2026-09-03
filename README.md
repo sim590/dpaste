@@ -75,7 +75,7 @@ You'll then find the binary `dpaste` under `build` directory.
 
 Archlinux AUR: https://aur.archlinux.org/packages/dpaste/
 
-Milis Linux:   mps kur dpaste  (https://github.com/milisarge/malfs-milis/blob/master/talimatname/genel/dpaste/talimat)
+Milis Linux: mps kur dpaste (https://github.com/milisarge/malfs-milis/blob/master/talimatname/genel/d/dpaste/talimat)
 
 ## Dependencies
 
@@ -86,8 +86,8 @@ Milis Linux:   mps kur dpaste  (https://github.com/milisarge/malfs-milis/blob/ma
 - [cURLpp](https://github.com/jpbarrette/curlpp) (minimal version: 0.8.1)
 - [glibmm](https://github.com/GNOME/glibmm)
 - [libb64](http://libb64.sourceforge.net/)
-- Getopt
 - [catch](https://github.com/catchorg/Catch2) for unit tests
+- getopt (util-linux)
 
 ## Pastebin over DHT
 
