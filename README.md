@@ -89,6 +89,14 @@ Milis Linux: mps kur dpaste (https://github.com/milisarge/malfs-milis/blob/maste
 - [catch](https://github.com/catchorg/Catch2) for unit tests
 - getopt (util-linux)
 
+## Caching
+
+To avoid the multi-second DHT cold start on every invocation, `dpaste` caches
+the DHT identity and the node state (routing table) on disk. The cache lives
+in `${XDG_CACHE_HOME}/dpaste` (usually `~/.cache/dpaste`) and can be relocated
+with the `DPASTE_CACHE_DIR` environment variable. The state is refreshed at
+the end of every run; the first run remains slow, subsequent ones start warm.
+
 ## Pastebin over DHT
 
 A DHT is efficient and requires no infrastructure. In practice, you can always
