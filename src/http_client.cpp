@@ -18,8 +18,11 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <fstream>
+#include <algorithm>
 #include <cstdint>
+#include <algorithm>
+#include <list>
+#include <sstream>
 
 #include <curlpp/cURLpp.hpp>
 #include <curlpp/Easy.hpp>
@@ -28,6 +31,7 @@
 #include <curlpp/Infos.hpp>
 #include <nlohmann/json.hpp>
 #include <b64/decode.h>
+#include <b64/encode.h>
 
 #include "http_client.h"
 #include "node.h"
@@ -36,34 +40,42 @@ namespace dpaste {
 
 using json = nlohmann::json;
 
-static std::ofstream null("/dev/null");
-
 std::string HttpClient::get(const std::string& code) const {
     try {
         curlpp::Cleanup mycleanup;
         curlpp::Easy req;
-        req.setOpt<curlpp::options::Port>(port);
-        std::stringstream response, oss;
-        req.setOpt<curlpp::options::Url>(HTTP_PROTO+
-                host+"/"+dht::InfoHash::get(code).toString()
-                +"?user_type="+dpaste::Node::DPASTE_USER_TYPE
-        );
+        std::stringstream response;
+        req.setOpt<curlpp::options::Url>(HTTP_PROTO + host + ":" +
+                std::to_string(port) + "/key/" +
+                dht::InfoHash::get(code).toString());
         req.setOpt(curlpp::Options::WriteStream(&response));
 
         try {
             req.perform();
             /* server gives code 200 when everything is fine. */
             if (curlpp::Infos::ResponseCode::get(req) == 200) {
-                auto pr = json::parse(response.str());
-                if (not pr.empty()) {
-                    std::istringstream iss((*pr.begin())["base64"].dump());
-                    base64::decoder d;
-                    d.decode(iss, oss);
+                std::istringstream lines(response.str());
+                std::string line;
+                while (std::getline(lines, line)) {
+                    try {
+                        const auto value = json::parse(line);
+                        if (value.is_object() &&
+                            value.value("utype", std::string {}) == Node::DPASTE_USER_TYPE &&
+                            value.contains("data") && value["data"].is_string()) {
+                            std::istringstream encoded(value["data"].get<std::string>());
+                            std::ostringstream decoded;
+                            base64::decoder decoder;
+                            decoder.decode(encoded, decoded);
+                            return decoded.str();
+                        }
+                    } catch (const std::exception&) {
+                        /* Ignore malformed or incompatible Value objects. */
+                    }
                 }
             }
         } catch (curlpp::RuntimeError & e) { }
 
-        return oss.str();
+        return {};
     } catch (curlpp::LogicError & e) { return {}; }
 }
 
@@ -71,15 +83,32 @@ bool HttpClient::put(const std::string& code, const std::string& data) const {
     try {
         curlpp::Cleanup mycleanup;
         curlpp::Easy req;
-        req.setOpt<curlpp::options::Port>(port);
-        req.setOpt<curlpp::options::Url>(HTTP_PROTO+host+"/"+dht::InfoHash::get(code).toString());
-        req.setOpt(curlpp::Options::WriteStream(&null));
-        {
-            curlpp::Forms form_parts;
-            form_parts.push_back(new curlpp::FormParts::Content("user_type", dpaste::Node::DPASTE_USER_TYPE));
-            form_parts.push_back(new curlpp::FormParts::Content("data", data));
-            req.setOpt(new curlpp::options::HttpPost(form_parts));
-        }
+        req.setOpt<curlpp::options::Url>(HTTP_PROTO + host + ":" +
+                std::to_string(port) + "/key/" +
+                dht::InfoHash::get(code).toString());
+
+        std::istringstream input(data);
+        std::ostringstream encoded;
+        base64::encoder encoder;
+        encoder.encode(input, encoded);
+
+        /* libb64 wraps long output lines; the proxy expects one compact
+         * standard-base64 string in the JSON Value. */
+        auto encoded_data = encoded.str();
+        encoded_data.erase(std::remove_if(encoded_data.begin(), encoded_data.end(),
+                [](char c) { return c == '\r' || c == '\n'; }), encoded_data.end());
+
+        const auto body = json {
+            {"id", "0"},
+            {"type", 0},
+            {"data", encoded_data},
+            {"utype", Node::DPASTE_USER_TYPE}
+        }.dump();
+        req.setOpt(curlpp::Options::PostFields(body));
+        req.setOpt(new curlpp::options::HttpHeader(
+                std::list<std::string> {"Content-Type: application/json"}));
+        std::stringstream response;
+        req.setOpt(curlpp::Options::WriteStream(&response));
 
         try {
             req.perform();
@@ -93,4 +122,3 @@ bool HttpClient::put(const std::string& code, const std::string& data) const {
 } /* dpaste */
 
 /* vim:set et sw=4 ts=4 tw=120: */
-

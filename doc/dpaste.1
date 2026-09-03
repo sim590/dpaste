@@ -71,8 +71,21 @@ The program returns 0 on success. Otherwise 1 is returned.
 
 .TP
 \fB$XDG_CONFIG_DIR/dpaste.conf\fP
-Main configuration file where. \fBdpaste\fP will look for this file to recover
-complementary information.
+Main configuration file where \fBdpaste\fP will look for this file to recover
+complementary information. The \fBhost\fP and \fBport\fP settings select the
+OpenDHT \fBDhtProxyServer\fP endpoint; the defaults are \fB127.0.0.1\fP and
+\fB6509\fP.
+
+.SH DHT PROXY
+
+An optional persistent local OpenDHT proxy can be run with the
+\fBdpaste-dhtnode.service\fP systemd user unit. Install the unit, then run
+\fBsystemctl --user daemon-reload\fP and
+\fBsystemctl --user enable --now dpaste-dhtnode.service\fP. It listens on the
+loopback endpoint above and persists its routing state. It avoids starting a
+new local node per invocation, but each random paste key still requires a DHT
+lookup. If the proxy is unavailable, dpaste falls back to a transient local
+DHT node.
 
 .SH AUTHORS
 \(bu
