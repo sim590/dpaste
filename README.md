@@ -83,7 +83,7 @@ Milis Linux:   mps kur dpaste  (https://github.com/milisarge/malfs-milis/blob/ma
 - [msgpack-c](https://github.com/msgpack/msgpack-c)
 - [gpgmepp](https://github.com/KDE/gpgmepp)
 - [json.hpp](https://github.com/nlohmann/json) (required version for CMake: 2.1.1)
-- [cURLpp](https://github.com/jpbarrette/curlpp) (minimal version: 0.8.1)
+- [cURLpp](https://github.com/jpbarrette/curlpp) (0.8.1 is known to fail to build. Use master branch of curlpp repo until a new release is made)
 - [glibmm](https://github.com/GNOME/glibmm)
 - [libb64](http://libb64.sourceforge.net/)
 - Getopt
