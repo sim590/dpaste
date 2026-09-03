@@ -43,14 +43,14 @@ bool Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSim
         std::mutex mtx;
         std::condition_variable cv;
         std::unique_lock<std::mutex> lk(mtx);
-        bool done, success_ {false};
+        bool done = false, success_ {false};
         node_.put(hash, v, [&](bool success) {
-            if (not success)
-                std::cerr << OPERATION_FAILURE_MSG << " (put)" << std::endl;
-            else
-                success_ = true;
             {
                 std::unique_lock<std::mutex> lk(mtx);
+                if (not success)
+                    std::cerr << OPERATION_FAILURE_MSG << " (put)" << std::endl;
+                else
+                    success_ = true;
                 done = true;
             }
             cv.notify_all();
@@ -88,4 +88,3 @@ std::vector<dht::Blob> Node::get(const std::string& code) {
 }
 
 } /* dpaste */
-
