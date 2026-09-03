@@ -79,7 +79,7 @@ Milis Linux: mps kur dpaste (https://github.com/milisarge/malfs-milis/blob/maste
 
 ## Dependencies
 
-- [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 1.2.0)
+- [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 3.0.0)
 - [msgpack-c](https://github.com/msgpack/msgpack-c)
 - [gpgmepp](https://github.com/KDE/gpgmepp)
 - [json.hpp](https://github.com/nlohmann/json) (required version for CMake: 2.1.1)
