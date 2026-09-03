@@ -54,15 +54,22 @@ public:
     static const constexpr char* DPASTE_USER_TYPE = "dpaste";
 
     Node() {}
-    virtual ~Node () {}
-
-    void run(uint16_t port = 0, std::string bootstrap_hostname = DEFAULT_BOOTSTRAP_NODE, std::string bootstrap_port = DEFAULT_BOOTSTRAP_PORT) {
+    virtual ~Node() {
+        /* Persist the node state (routing table) on disk so the next run
+         * starts warm instead of cold-bootstrapping the DHT. */
         if (running_)
-            return;
-        node_.run(port, dht::crypto::generateIdentity(), true);
-        node_.bootstrap(bootstrap_hostname, bootstrap_port);
-        running_ = true;
-    };
+            stop();
+    }
+
+    /**
+     * Start the DHT node. The identity and the node state are cached on disk
+     * (see DPASTE_CACHE_DIR below) so subsequent runs connect much faster.
+     *
+     * @param port              Local port to bind (0 for random).
+     * @param bootstrap_hostname Hostname of the bootstrap node.
+     * @param bootstrap_port    Port of the bootstrap node.
+     */
+    void run(uint16_t port = 0, std::string bootstrap_hostname = DEFAULT_BOOTSTRAP_NODE, std::string bootstrap_port = DEFAULT_BOOTSTRAP_PORT);
 
     void stop() {
         std::condition_variable cv;
@@ -116,8 +123,18 @@ public:
 
 private:
 
+    /**
+     * Load the DHT identity from the on-disk cache, generating and caching a
+     * new one if the cache is missing or corrupt.
+     */
+    dht::crypto::Identity loadIdentity();
+
     dht::DhtRunner node_;
     bool running_ {false};
+
+    /* on-disk cache locations (identity + DHT node state) */
+    std::string identity_path_ {};
+    std::string nodes_path_ {};
 
     std::uniform_int_distribution<uint32_t> codeDist_;
     std::mt19937_64 rand_;

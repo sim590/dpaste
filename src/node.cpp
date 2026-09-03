@@ -21,14 +21,89 @@
 #include <algorithm>
 #include <random>
 #include <future>
+#include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 
 #include <opendht.h>
+#include <glibmm.h>
 
 #include "node.h"
 
 namespace dpaste {
 
 const constexpr char* Node::DPASTE_USER_TYPE;
+
+namespace {
+
+/**
+ * Directory holding the on-disk caches (identity + node state).
+ * Can be overridden with the DPASTE_CACHE_DIR environment variable
+ * (e.g. for tests). Defaults to ${XDG_CACHE_HOME}/dpaste.
+ */
+std::string cacheDir() {
+    const char* env = std::getenv("DPASTE_CACHE_DIR");
+    std::string dir = env and *env ? env : Glib::get_user_cache_dir() + "/dpaste";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    return dir;
+}
+
+} /* anonymous namespace */
+
+dht::crypto::Identity Node::loadIdentity() {
+    /* Only try the cache if the files exist: a missing cache is the normal
+     * first-run case and shouldn't print a scary error. */
+    std::ifstream key_file(identity_path_ + ".pem");
+    if (key_file.good()) {
+        try {
+            auto id = dht::crypto::loadIdentity(identity_path_);
+            if (id.first and id.second)
+                return id;
+        } catch (const std::exception& e) {
+            std::cerr << "dpaste: cached identity is corrupt (" << e.what() << "), generating a new one." << std::endl;
+        }
+    }
+
+    auto id = dht::crypto::generateIdentity();
+    try {
+        /* Write to temporary files first, then rename, so concurrent dpaste
+         * processes never leave a half-written identity in the cache. */
+        auto tmp_path = identity_path_ + ".tmp";
+        dht::crypto::saveIdentity(id, tmp_path);
+        std::rename((tmp_path + ".pem").c_str(), (identity_path_ + ".pem").c_str());
+        std::rename((tmp_path + ".crt").c_str(), (identity_path_ + ".crt").c_str());
+    } catch (const std::exception& e) {
+        std::cerr << "dpaste: failed to cache identity: " << e.what() << std::endl;
+    }
+    return id;
+}
+
+void Node::run(uint16_t port, std::string bootstrap_hostname, std::string bootstrap_port) {
+    if (running_)
+        return;
+
+    auto dir = cacheDir();
+    identity_path_ = dir + "/identity";
+    nodes_path_ = dir + "/nodes";
+
+    /* Load (or generate and cache) the identity so we don't pay for RSA key
+     * generation on every run. */
+    auto identity = loadIdentity();
+
+    /* Ask OpenDHT to load its state (routing table) on start and save it on
+     * shutdown; this turns the multi-second DHT cold start into a warm one. */
+    dht::DhtRunner::Config config;
+    config.dht_config.id = identity;
+    config.dht_config.node_config.persist_path = nodes_path_;
+    config.threaded = true;
+    node_.run(port, config);
+
+    node_.bootstrap(bootstrap_hostname, bootstrap_port);
+    running_ = true;
+}
 
 bool Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
     auto v = std::make_shared<dht::Value>(std::forward<dht::Blob>(blob));

@@ -79,7 +79,7 @@ Milis Linux: mps kur dpaste (https://github.com/milisarge/malfs-milis/blob/maste
 
 ## Dependencies
 
-- [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 1.2.0)
+- [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 3.0.0)
 - [msgpack-c](https://github.com/msgpack/msgpack-c)
 - [gpgmepp](https://github.com/KDE/gpgmepp)
 - [json.hpp](https://github.com/nlohmann/json) (required version for CMake: 2.1.1)
@@ -88,6 +88,14 @@ Milis Linux: mps kur dpaste (https://github.com/milisarge/malfs-milis/blob/maste
 - [libb64](http://libb64.sourceforge.net/)
 - [catch](https://github.com/catchorg/Catch2) for unit tests
 - getopt (util-linux)
+
+## Caching
+
+To avoid the multi-second DHT cold start on every invocation, `dpaste` caches
+the DHT identity and the node state (routing table) on disk. The cache lives
+in `${XDG_CACHE_HOME}/dpaste` (usually `~/.cache/dpaste`) and can be relocated
+with the `DPASTE_CACHE_DIR` environment variable. The state is refreshed at
+the end of every run; the first run remains slow, subsequent ones start warm.
 
 ## Pastebin over DHT
 
