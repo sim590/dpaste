@@ -19,6 +19,13 @@
  */
 
 #include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <stdexcept>
+
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include <catch2/catch.hpp>
 
@@ -46,8 +53,87 @@ public:
     }
 };
 
+class DirectDhtConfig final {
+public:
+    DirectDhtConfig() {
+        const auto previous = std::getenv("XDG_CONFIG_HOME");
+        if (previous) {
+            previous_config_home_ = previous;
+            had_previous_config_home_ = true;
+        }
+
+        char directory[] = "/tmp/dpaste-bin-test-XXXXXX";
+        if (not mkdtemp(directory))
+            throw std::runtime_error("could not create temporary configuration directory");
+        config_home_ = directory;
+
+        try {
+            std::ofstream config(config_home_ + "/dpaste.conf");
+            if (not config)
+                throw std::runtime_error("could not create temporary configuration file");
+            config << "host = 127.0.0.1\nport = " << unavailable_port() << '\n';
+            config.close();
+            if (not config)
+                throw std::runtime_error("could not write temporary configuration file");
+            if (setenv("XDG_CONFIG_HOME", config_home_.c_str(), 1) != 0)
+                throw std::runtime_error("could not set XDG_CONFIG_HOME");
+        } catch (...) {
+            cleanup();
+            throw;
+        }
+    }
+
+    ~DirectDhtConfig() { cleanup(); }
+
+    DirectDhtConfig(const DirectDhtConfig&) = delete;
+    DirectDhtConfig& operator=(const DirectDhtConfig&) = delete;
+
+private:
+    static uint16_t unavailable_port() {
+        const auto socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (socket_fd < 0)
+            throw std::runtime_error("could not create loopback socket");
+
+        sockaddr_in address {};
+        address.sin_family = AF_INET;
+        address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        address.sin_port = htons(0);
+        if (bind(socket_fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) != 0) {
+            close(socket_fd);
+            throw std::runtime_error("could not bind loopback socket");
+        }
+
+        socklen_t address_length = sizeof(address);
+        if (getsockname(socket_fd, reinterpret_cast<sockaddr*>(&address), &address_length) != 0) {
+            close(socket_fd);
+            throw std::runtime_error("could not inspect loopback socket");
+        }
+        const auto port = ntohs(address.sin_port);
+        close(socket_fd);
+        return port;
+    }
+
+    void cleanup() noexcept {
+        if (config_home_.empty())
+            return;
+        if (had_previous_config_home_)
+            setenv("XDG_CONFIG_HOME", previous_config_home_.c_str(), 1);
+        else
+            unsetenv("XDG_CONFIG_HOME");
+        unlink((config_home_ + "/dpaste.conf").c_str());
+        rmdir(config_home_.c_str());
+        config_home_.clear();
+    }
+
+    std::string config_home_;
+    std::string previous_config_home_;
+    bool had_previous_config_home_ = false;
+};
+
 TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
     using pbt = PirateBinTester;
+    // Keep a user's configured proxy from changing this direct-DHT test.
+    DirectDhtConfig direct_dht_config;
     std::vector<uint8_t> data = {0, 1, 2, 3, 4};
     Bin bin {};
     crypto::Cipher::init();
@@ -124,4 +210,3 @@ TEST_CASE("Bin conversion of stringstream to vector", "[Bin][data_from_stream]")
 } /* dpaste */
 
 /* vim: set ts=4 sw=4 tw=120 et :*/
-
