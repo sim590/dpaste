@@ -1,4 +1,4 @@
-AC_INIT(dpaste, 0.4.1)
+AC_INIT(dpaste, 0.5.0)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h])
@@ -45,4 +45,3 @@ AM_COND_IF([DPASTE_TEST],
 AC_OUTPUT
 
 # vim: set ts=2 sw=2 tw=120 et :
-

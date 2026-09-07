@@ -5,8 +5,8 @@ After=network-online.target
 
 [Service]
 Type=simple
-ExecStartPre=/usr/bin/mkdir -p %h/.local/state/dpaste
-ExecStart=/usr/bin/dhtnode --service --port 0 --bootstrap bootstrap.jami.net:4222 --proxyserver 6509 --proxy-addr 127.0.0.1 --persist %h/.local/state/dpaste/dhtnode
+CacheDirectory=dpaste
+ExecStart=/usr/bin/dhtnode --service --port 0 --bootstrap bootstrap.jami.net:4222 --proxyserver 6509 --proxy-addr 127.0.0.1 --persist ${CACHE_DIRECTORY}/dhtnode
 Restart=on-failure
 
 [Install]

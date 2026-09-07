@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(dpaste)
 include(GNUInstallDirs)
-set(dpaste_VERSION 0.4.1)
+set(dpaste_VERSION 0.5.0)
 add_definitions(-DVERSION="${dpaste_VERSION}")
 add_definitions(-DPACKAGE_NAME="dpaste")
 
@@ -61,6 +61,6 @@ target_link_libraries(dpaste LINK_PUBLIC -lopendht -lgnutls -lnettle -largon2 -l
 #####################
 install(TARGETS dpaste RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES systemd/dpaste-dhtnode.service
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/systemd/user)
+        DESTINATION lib/systemd/user)
 
 #  vim: set ts=4 sw=4 tw=120 noet :

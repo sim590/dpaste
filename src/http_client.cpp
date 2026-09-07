@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <algorithm>
 #include <list>
 #include <sstream>
 
@@ -34,19 +33,32 @@
 #include <b64/encode.h>
 
 #include "http_client.h"
+#include "log.h"
 #include "node.h"
 
 namespace dpaste {
 
 using json = nlohmann::json;
 
+namespace {
+
+std::string urlHost(const std::string& host) {
+    if (host.size() >= 2 && host.front() == '[' && host.back() == ']')
+        return host;
+    if (host.find(':') != std::string::npos)
+        return "[" + host + "]";
+    return host;
+}
+
+} /* anonymous namespace */
+
 std::string HttpClient::get(const std::string& code) const {
     try {
         curlpp::Cleanup mycleanup;
         curlpp::Easy req;
         std::stringstream response;
-        req.setOpt<curlpp::options::Url>(HTTP_PROTO + host + ":" +
-                std::to_string(port) + "/key/" +
+        req.setOpt<curlpp::options::Port>(port);
+        req.setOpt<curlpp::options::Url>(HTTP_PROTO + urlHost(host) + "/key/" +
                 dht::InfoHash::get(code).toString());
         req.setOpt(curlpp::Options::WriteStream(&response));
 
@@ -54,6 +66,8 @@ std::string HttpClient::get(const std::string& code) const {
             req.perform();
             /* server gives code 200 when everything is fine. */
             if (curlpp::Infos::ResponseCode::get(req) == 200) {
+                /* DhtProxyServer returns one JSON Value per line; do not parse
+                 * the whole response as a single JSON document. */
                 std::istringstream lines(response.str());
                 std::string line;
                 while (std::getline(lines, line)) {
@@ -73,18 +87,23 @@ std::string HttpClient::get(const std::string& code) const {
                     }
                 }
             }
-        } catch (curlpp::RuntimeError & e) { }
+        } catch (curlpp::RuntimeError & e) {
+            DPASTE_MSG("%s", e.what());
+        }
 
         return {};
-    } catch (curlpp::LogicError & e) { return {}; }
+    } catch (curlpp::LogicError & e) {
+        DPASTE_MSG("%s", e.what());
+        return {};
+    }
 }
 
 bool HttpClient::put(const std::string& code, const std::string& data) const {
     try {
         curlpp::Cleanup mycleanup;
         curlpp::Easy req;
-        req.setOpt<curlpp::options::Url>(HTTP_PROTO + host + ":" +
-                std::to_string(port) + "/key/" +
+        req.setOpt<curlpp::options::Port>(port);
+        req.setOpt<curlpp::options::Url>(HTTP_PROTO + urlHost(host) + "/key/" +
                 dht::InfoHash::get(code).toString());
 
         std::istringstream input(data);
@@ -99,8 +118,6 @@ bool HttpClient::put(const std::string& code, const std::string& data) const {
                 [](char c) { return c == '\r' || c == '\n'; }), encoded_data.end());
 
         const auto body = json {
-            {"id", "0"},
-            {"type", 0},
             {"data", encoded_data},
             {"utype", Node::DPASTE_USER_TYPE}
         }.dump();
@@ -114,9 +131,13 @@ bool HttpClient::put(const std::string& code, const std::string& data) const {
             req.perform();
             return curlpp::Infos::ResponseCode::get(req) == 200;
         } catch (curlpp::RuntimeError & e) {
+            DPASTE_MSG("%s", e.what());
             return false;
         }
-    } catch (curlpp::LogicError & e) { return false; }
+    } catch (curlpp::LogicError & e) {
+        DPASTE_MSG("%s", e.what());
+        return false;
+    }
 }
 
 } /* dpaste */

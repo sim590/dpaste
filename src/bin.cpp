@@ -51,13 +51,6 @@ Bin::Bin() {
     http_client_ = std::make_unique<HttpClient>(conf_.at("host"), port);
 }
 
-void Bin::ensureNodeRunning() {
-    if (not node_running_) {
-        node.run();
-        node_running_ = true;
-    }
-}
-
 std::string Bin::code_from_dpaste_uri(const std::string& uri) {
     static const std::string DUP {DPASTE_URI_PREFIX};
     const auto p = uri.find(DUP);
@@ -77,7 +70,7 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
     /* if fail, then perform request from local node */
     if (data.empty()) {
         /* get a pasted blob */
-        ensureNodeRunning();
+        node.run();
         auto values = node.get(lcode);
         if (not values.empty())
             data = values.front();
@@ -190,7 +183,7 @@ std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Para
     auto bin_packet = p.serialize();
     auto success = http_client_->put(code, {bin_packet.begin(), bin_packet.end()});
     if (not success) {
-        ensureNodeRunning();
+        node.run();
         success = node.paste(code, std::move(bin_packet));
     }
 

@@ -76,8 +76,6 @@ public:
     }
 
 private:
-    void ensureNodeRunning();
-
     /* constants */
     static const constexpr char* DPASTE_URI_PREFIX = "dpaste:";
     static const constexpr uint8_t PROTO_VERSION = 0;
@@ -126,7 +124,6 @@ private:
     /* transport */
     std::unique_ptr<HttpClient> http_client_ {};
     Node node {};
-    bool node_running_ {false};
 };
 
 } /* dpaste */

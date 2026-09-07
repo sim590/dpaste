@@ -71,10 +71,18 @@ The program returns 0 on success. Otherwise 1 is returned.
 
 .TP
 \fB$XDG_CONFIG_DIR/dpaste.conf\fP
-Main configuration file where \fBdpaste\fP will look for this file to recover
-complementary information. The \fBhost\fP and \fBport\fP settings select the
-OpenDHT \fBDhtProxyServer\fP endpoint; the defaults are \fB127.0.0.1\fP and
-\fB6509\fP.
+Main configuration file where \fBdpaste\fP looks for configuration.
+
+.SH CONFIGURATION
+
+.TP
+\fBhost\fP
+\fBDhtProxyServer\fP host, accepting a DNS name, IPv4 address, or IPv6
+literal (for example, \fB[::1]\fP). Default: \fB127.0.0.1\fP.
+
+.TP
+\fBport\fP
+\fBDhtProxyServer\fP port. Default: \fB6509\fP.
 
 .SH DHT PROXY
 

@@ -43,7 +43,7 @@ class Node {
 #ifdef DPASTE_TEST
     friend class tests::PirateNodeTester;
 #endif
-    static const constexpr char* DEFAULT_BOOTSTRAP_NODE = "bootstrap.ring.cx";
+    static const constexpr char* DEFAULT_BOOTSTRAP_NODE = "bootstrap.jami.net";
     static const constexpr char* DEFAULT_BOOTSTRAP_PORT = "4222";
     static const constexpr char* CONNECTION_FAILURE_MSG = "err.. Failed to connect to the DHT.";
     static const constexpr char* OPERATION_FAILURE_MSG = "err.. DHT operation failed.";
