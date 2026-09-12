@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017 Simon Désaulniers
+ * Copyright © 2017-2020 Simon Désaulniers
  * Author: Simon Désaulniers <sim.desaulniers@gmail.com>
  *
  * This file is part of dpaste.
@@ -38,12 +38,17 @@ using json = nlohmann::json;
 
 static std::ofstream null("/dev/null");
 
-std::string HttpClient::get(const std::string& code) const {
+bool HttpClient::isAvailable() const {
+    return put(dht::InfoHash::getRandom().toString(), "hello world");
+}
+
+std::vector<std::string> HttpClient::get(const std::string& code) const {
     try {
         curlpp::Cleanup mycleanup;
         curlpp::Easy req;
         req.setOpt<curlpp::options::Port>(port);
-        std::stringstream response, oss;
+        std::stringstream response;
+        std::vector<std::string> data;
         req.setOpt<curlpp::options::Url>(HTTP_PROTO+
                 host+"/"+dht::InfoHash::get(code).toString()
                 +"?user_type="+dpaste::Node::DPASTE_USER_TYPE
@@ -55,15 +60,17 @@ std::string HttpClient::get(const std::string& code) const {
             /* server gives code 200 when everything is fine. */
             if (curlpp::Infos::ResponseCode::get(req) == 200) {
                 auto pr = json::parse(response.str());
-                if (not pr.empty()) {
-                    std::istringstream iss((*pr.begin())["base64"].dump());
+                for (const auto& entry : pr) {
+                    std::istringstream iss(entry["base64"].dump());
+                    std::stringstream oss;
                     base64::decoder d;
                     d.decode(iss, oss);
+                    data.emplace_back(oss.str());
                 }
             }
         } catch (curlpp::RuntimeError & e) { }
 
-        return oss.str();
+        return data;
     } catch (curlpp::LogicError & e) { return {}; }
 }
 
