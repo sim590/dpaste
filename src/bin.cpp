@@ -48,6 +48,7 @@ Bin::Bin() {
         conv >> port;
     }
 
+    node.run();
     http_client_ = std::make_unique<HttpClient>(conf_.at("host"), port);
 }
 
@@ -70,7 +71,6 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
     /* if fail, then perform request from local node */
     if (data.empty()) {
         /* get a pasted blob */
-        node.run();
         auto values = node.get(lcode);
         if (not values.empty())
             data = values.front();
@@ -182,10 +182,8 @@ std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Para
     DPASTE_MSG("Pasting data...");
     auto bin_packet = p.serialize();
     auto success = http_client_->put(code, {bin_packet.begin(), bin_packet.end()});
-    if (not success) {
-        node.run();
+    if (not success)
         success = node.paste(code, std::move(bin_packet));
-    }
 
     return success ? DPASTE_URI_PREFIX+code+pwd  : "";
 }
@@ -227,3 +225,4 @@ void Bin::Packet::deserialize(const std::vector<uint8_t>& pbuffer) {
 } /* dpaste  */
 
 /* vim:set et sw=4 ts=4 tw=120: */
+
