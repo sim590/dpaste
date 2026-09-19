@@ -45,3 +45,4 @@ AM_COND_IF([DPASTE_TEST],
 AC_OUTPUT
 
 # vim: set ts=2 sw=2 tw=120 et :
+

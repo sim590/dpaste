@@ -210,3 +210,4 @@ TEST_CASE("Bin conversion of stringstream to vector", "[Bin][data_from_stream]")
 } /* dpaste */
 
 /* vim: set ts=4 sw=4 tw=120 et :*/
+

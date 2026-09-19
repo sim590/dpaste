@@ -30,3 +30,4 @@ if DPASTE_TEST
 endif
 
 #  vim: set ts=4 sw=4 tw=120 noet :
+
