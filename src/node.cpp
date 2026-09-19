@@ -21,14 +21,57 @@
 #include <algorithm>
 #include <random>
 #include <future>
+#include <cstdlib>
+#include <filesystem>
+#include <iostream>
+#include <optional>
 
 #include <opendht.h>
+#include <glibmm.h>
 
 #include "node.h"
+#include "log.h"
 
 namespace dpaste {
 
 const constexpr char* Node::DPASTE_USER_TYPE;
+
+namespace {
+
+/**
+ * Directory holding the on-disk OpenDHT node state.
+ * Can be overridden with the DPASTE_CACHE_DIR environment variable
+ * (e.g. for tests). Defaults to ${XDG_CACHE_HOME}/dpaste.
+ */
+std::optional<std::filesystem::path> create_cache_dir() {
+    const char* env = std::getenv("DPASTE_CACHE_DIR");
+    const std::filesystem::path cache_dir = env and *env ? env : Glib::get_user_cache_dir() + "/dpaste";
+    std::error_code ec;
+    std::filesystem::create_directories(cache_dir, ec);
+    if (ec) {
+        DPASTE_MSG("warning: could not create cache directory '%s': %s; the DHT state will not be persisted", cache_dir.string().c_str(), ec.message().c_str());
+        return std::nullopt;
+    }
+    return cache_dir;
+}
+
+} /* anonymous namespace */
+
+void Node::run(uint16_t port, std::string bootstrap_hostname, std::string bootstrap_port) {
+    if (running_)
+        return;
+
+    dht::DhtRunner::Config config;
+    /* Ask OpenDHT to load its state (routing table) on start and save it on
+     * shutdown; this reuses known peers and improves bootstrap resilience. */
+    if (const auto cache_dir = create_cache_dir())
+        config.dht_config.node_config.persist_path = (*cache_dir / "nodes").string();
+    config.threaded = true;
+    node_.run(port, config);
+
+    node_.bootstrap(bootstrap_hostname, bootstrap_port);
+    running_ = true;
+}
 
 bool Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
     auto v = std::make_shared<dht::Value>(std::forward<dht::Blob>(blob));
