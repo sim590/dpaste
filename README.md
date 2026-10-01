@@ -142,8 +142,7 @@ not likely to be "down".
   multiple locations, see #17);
 - Support for multi-lingual interface (--help, info/debug messages, see #18);
 - Support for longer paste life time (OpenDHT's default is 10 minutes, see #19);
-- Switch from the currently used [small python REST API server script][pyserver] to
-  OpenDHT's proxy (see #20);
+- ~~Switch from the currently used [small python REST API server script][pyserver] to OpenDHT's proxy (see #20)~~;
 - Improve the logging code (with dedicated library?);
 - ~~Password based encryption (AES using gnutls)~~;
 - ~~Add user configuration file system;~~
