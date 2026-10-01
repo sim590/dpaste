@@ -56,23 +56,25 @@ public:
      *
      * @param code        The PIN for finding data in DHT.
      * @param no_decrypt  Whether to decrypt the recovered data or not.
+     * @param no_proxy    Whether to skip the proxy and read from the local DHT node.
      *
      * @return return code (0: success, 1 fail)
      */
-    std::pair<bool, std::string> get(std::string&& code, bool no_decrypt=false);
+    std::pair<bool, std::string> get(std::string&& code, bool no_decrypt=false, bool no_proxy=false);
 
     /**
      * Execute procedure to publish content and generate the associated code.
      *
-     * @param data    Data to be pasted.
-     * @param params  Cryptographic parameters.
+     * @param data     Data to be pasted.
+     * @param params   Cryptographic parameters.
+     * @param no_proxy Whether to skip the proxy and publish to the local DHT node.
      *
      * @return the code (key) to the pasted data. If empty, then process failed.
      */
-    std::string paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params);
-    std::string paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params) {
+    std::string paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy=false);
+    std::string paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy=false) {
         return paste(data_from_stream(std::move(input_stream)),
-                std::forward<std::unique_ptr<crypto::Parameters>>(params));
+                std::forward<std::unique_ptr<crypto::Parameters>>(params), no_proxy);
     }
 
 private:

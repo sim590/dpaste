@@ -43,6 +43,7 @@ struct ParsedArgs {
     bool aes_encrypt {false};
     bool gpg_encrypt {false};
     bool no_decrypt {false};
+    bool no_proxy {false};
     bool self_recipient {false};
     std::string code;
     std::vector<std::string> recipients;
@@ -57,6 +58,7 @@ static const constexpr struct option long_options[] = {
    {"recipients",     required_argument, nullptr, 'r'},
    {"sign",           no_argument,       nullptr, 's'},
    {"no-decrypt",     no_argument,       nullptr, '1'},
+   {"no-proxy",       no_argument,       nullptr, '5'},
    {"self-recipient", no_argument,       nullptr, '2'},
    {nullptr,          0,                 nullptr,  0 }
 };
@@ -92,6 +94,9 @@ ParsedArgs parseArgs(int argc, char *argv[]) {
             break;
         case '2':
             pa.self_recipient = true;
+            break;
+        case '5':
+            pa.no_proxy = true;
             break;
         default:
             pa.fail = true;
@@ -144,6 +149,10 @@ void print_help() {
               << "        Tells dpaste not to decrypt PGP data and rather output it on stdout."
               << std::endl;
 
+    std::cout << "    --no-proxy" << std::endl
+              << "        Skip the DHT proxy and use the local DHT node directly."
+              << std::endl;
+
     std::cout << "    --self-recipient" << std::endl
               << "        Include self as recipient. Self refers to the key id configured for signing" << std::endl;
     std::cout << "        (see --sign description). This only takes effect if option \"-e\" is also used." << std::endl;
@@ -184,7 +193,7 @@ int main(int argc, char *argv[]) {
     dpaste::crypto::Cipher::init();
     int rc;
     if (not parsed_args.code.empty()) {
-        auto r = dpastebin.get(std::move(parsed_args.code), parsed_args.no_decrypt);
+        auto r = dpastebin.get(std::move(parsed_args.code), parsed_args.no_decrypt, parsed_args.no_proxy);
         if (r.first) {
             rc = 0;
             std::cout << r.second;
@@ -193,7 +202,7 @@ int main(int argc, char *argv[]) {
     } else {
         std::stringstream ss;
         ss << std::cin.rdbuf();
-        auto uri = dpastebin.paste(std::move(ss), params_from_args(parsed_args));
+        auto uri = dpastebin.paste(std::move(ss), params_from_args(parsed_args), parsed_args.no_proxy);
         std::cout << uri << std::endl;
         rc = uri.empty() ? 1 : 0;
     }
