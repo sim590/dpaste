@@ -126,8 +126,10 @@ std::string Bin::random_pin() {
     static std::random_device rdev;
     static std::seed_seq seed {rdev(), rdev()};
     static bool initialized = false;
-    if (not initialized)
+    if (not initialized) {
         rand_.seed(seed);
+        initialized = true;
+    }
 
     auto pin = dist(rand_);
     std::stringstream ss;
