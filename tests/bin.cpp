@@ -52,11 +52,11 @@ TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
     Bin bin {};
     crypto::Cipher::init();
     SECTION ( "pasting data {0,1,2,3,4}" ) {
-        auto code = bin.paste(std::vector<uint8_t> {data}, {});
+        auto code = bin.paste(std::vector<uint8_t> {data}, {}, true);
         REQUIRE ( code.size() == pbt::LOCATION_CODE_LEN+sizeof(pbt::DPASTE_URI_PREFIX)-1 );
 
         SECTION ( "getting pasted blob back from the DHT" ) {
-            auto rd = bin.get(std::move(code)).second;
+            auto rd = bin.get(std::move(code), false, true).second;
             std::vector<uint8_t> rdv {rd.begin(), rd.end()};
             REQUIRE ( data == rdv );
         }
@@ -64,11 +64,11 @@ TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
     SECTION ( "pasting AES encrypted {0,1,2,3,4}" ) {
         auto p = std::make_unique<dpaste::crypto::Parameters>();
         p->emplace<crypto::AESParameters>();
-        auto code = bin.paste(std::vector<uint8_t> {data}, std::move(p));
+        auto code = bin.paste(std::vector<uint8_t> {data}, std::move(p), true);
         REQUIRE ( code.size() == 2*pbt::LOCATION_CODE_LEN+sizeof(pbt::DPASTE_URI_PREFIX)-1 );
 
         SECTION ( "getting pasted AES encrypted blob back from the DHT" ) {
-            auto rd = bin.get(std::move(code)).second;
+            auto rd = bin.get(std::move(code), false, true).second;
             std::vector<uint8_t> rdv {rd.begin(), rd.end()};
             REQUIRE ( data == rdv );
         }

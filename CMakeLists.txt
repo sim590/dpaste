@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(dpaste)
-set(dpaste_VERSION 0.4.1)
+include(GNUInstallDirs)
+set(dpaste_VERSION 0.5.0)
 add_definitions(-DVERSION="${dpaste_VERSION}")
 add_definitions(-DPACKAGE_NAME="dpaste")
 
@@ -15,7 +16,7 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 ############################
 #  Find required packages  #
 ############################
-find_package(opendht 1.8.2 REQUIRED)
+find_package(opendht 2.4.9 REQUIRED)
 find_package(CURLpp REQUIRED)
 find_package(glibmm REQUIRED)
 find_package(B64 REQUIRED)
@@ -58,6 +59,8 @@ target_link_libraries(dpaste LINK_PUBLIC -lopendht -lgnutls -lnettle -largon2 -l
 #####################
 #  install targets  #
 #####################
-install(TARGETS dpaste DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(TARGETS dpaste RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES systemd/dpaste-dhtnode.service
+        DESTINATION lib/systemd/user)
 
 #  vim: set ts=4 sw=4 tw=120 noet :

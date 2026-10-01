@@ -1,4 +1,4 @@
-AC_INIT(dpaste, 0.4.1)
+AC_INIT(dpaste, 0.5.0)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h])
@@ -18,7 +18,7 @@ AS_IF([test "x$enable_debug" = "xyes"],
 AC_PROG_CXX
 AC_PROG_RANLIB
 
-PKG_CHECK_MODULES([OpenDHT], [opendht >= 1.8.2])
+PKG_CHECK_MODULES([OpenDHT], [opendht >= 2.4.9])
 PKG_CHECK_MODULES([CURLPP], [curlpp])
 PKG_CHECK_MODULES([GLIBMM], [glibmm-2.4])
 

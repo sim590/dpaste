@@ -58,15 +58,18 @@ std::string Bin::code_from_dpaste_uri(const std::string& uri) {
     return uri.substr(p != std::string::npos ? p+DUP.length() : 0);
 }
 
-std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
+std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool no_proxy) {
     code = code_from_dpaste_uri(code);
     const auto offset = crypto::AES::CODE_PASS_OFFSET*2;
     const auto lcode = code.substr(0, offset);
     const auto pwd = code.substr(offset);
 
+    std::vector<uint8_t> data;
     /* first try http server */
-    auto data_str = http_client_->get(lcode);
-    std::vector<uint8_t> data {data_str.begin(), data_str.end()};
+    if (not no_proxy) {
+        const auto data_str = http_client_->get(lcode);
+        data.assign(data_str.begin(), data_str.end());
+    }
 
     /* if fail, then perform request from local node */
     if (data.empty()) {
@@ -123,8 +126,10 @@ std::string Bin::random_pin() {
     static std::random_device rdev;
     static std::seed_seq seed {rdev(), rdev()};
     static bool initialized = false;
-    if (not initialized)
+    if (not initialized) {
         rand_.seed(seed);
+        initialized = true;
+    }
 
     auto pin = dist(rand_);
     std::stringstream ss;
@@ -172,7 +177,7 @@ std::pair<Bin::Packet, std::string> Bin::prepare_data(std::vector<uint8_t>&& dat
     return {p, pwd};
 }
 
-std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params) {
+std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy) {
     auto code = random_pin();
 
     auto pp = prepare_data(std::forward<std::vector<uint8_t>>(data), std::forward<std::unique_ptr<crypto::Parameters>>(params));
@@ -181,7 +186,9 @@ std::string Bin::paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Para
 
     DPASTE_MSG("Pasting data...");
     auto bin_packet = p.serialize();
-    auto success = http_client_->put(code, {bin_packet.begin(), bin_packet.end()});
+    bool success {false};
+    if (not no_proxy)
+        success = http_client_->put(code, {bin_packet.begin(), bin_packet.end()});
     if (not success)
         success = node.paste(code, std::move(bin_packet));
 
