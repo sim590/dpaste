@@ -1,0 +1,14 @@
+# Builds dpaste against the CI environment provided by DockerfileBase.
+# Build the base image first, e.g.:
+#   docker build -t dpaste-ci-base -f docker/DockerfileBase .
+#   docker build -t dpaste-ci -f docker/DockerfileCI .
+FROM dpaste-ci-base
+LABEL maintainer="Simon Désaulniers <sim.desaulniers@gmail.com>"
+COPY . /root/dpaste
+RUN cd /root/dpaste \
+    && ./autogen.sh \
+    && ./configure --enable-tests \
+    && make -j"$(nproc)" \
+    && make install
+
+#  vim: set ft=dockerfile ts=4 sw=4 tw=120 et :

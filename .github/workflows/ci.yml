@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build CI environment image
+        run: docker build -t dpaste-ci-base -f docker/DockerfileBase .
+
+      - name: Build dpaste
+        run: docker build -t dpaste-ci -f docker/DockerfileCI .
+
+      - name: Run unit tests
+        run: docker run --rm dpaste-ci /bin/sh -c 'cd /root/dpaste && make test'
