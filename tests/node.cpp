@@ -18,14 +18,16 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <catch2/catch.hpp>
-
 #include <cstdlib>
 #include <stdexcept>
 #include <unistd.h>
 
 #include "tests.h"
 #include "node.h"
+
+/* Included after the project headers: OpenDHT's log_enable.h defines a `WARN`
+ * member that collides with Catch2's WARN() macro. */
+#include <catch2/catch.hpp>
 
 namespace dpaste {
 namespace tests {
