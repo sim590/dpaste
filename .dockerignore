@@ -1,0 +1,11 @@
+.git
+build
+autom4te.cache
+*.o
+*.a
+.deps
+src/dpaste
+tests/dptest
+config.log
+config.status
+stamp-h1
