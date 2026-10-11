@@ -17,9 +17,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build CI environment image
-        run: docker build -t dpaste-ci-base -f docker/DockerfileBase .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
+      - name: Build CI environment image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/DockerfileBase
+          tags: dpaste-ci-base:latest
+          load: true
+          cache-from: type=gha,scope=dpaste-base
+          cache-to: type=gha,scope=dpaste-base,mode=max
+
+      # Docker's local image store contains the base image loaded above.
       - name: Build dpaste
         run: docker build -t dpaste-ci -f docker/DockerfileCI .
 
