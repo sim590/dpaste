@@ -1,4 +1,4 @@
-# Docker hub destination: sim590/dpaste-ci
+# Dependencies for building and testing dpaste in CI.
 FROM debian:bookworm-slim
 LABEL maintainer="Simon Désaulniers <sim.desaulniers@gmail.com>"
 RUN apt-get update \
