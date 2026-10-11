@@ -8,7 +8,6 @@ COPY . /root/dpaste
 RUN cd /root/dpaste \
     && ./autogen.sh \
     && ./configure --enable-tests \
-    && make -j"$(nproc)" \
-    && make install
+    && make -j"$(nproc)"
 
 #  vim: set ft=dockerfile ts=4 sw=4 tw=120 et :
