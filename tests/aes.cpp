@@ -20,7 +20,7 @@
 
 #include <memory>
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include "cipher.h"
 #include "aescrypto.h"

@@ -117,7 +117,7 @@ Milis Linux: mps kur dpaste (https://github.com/milisarge/malfs-milis/blob/maste
 - [cURLpp](https://github.com/jpbarrette/curlpp) (0.8.1 is known to fail to build. Use master branch of curlpp repo until a new release is made)
 - [glibmm](https://github.com/GNOME/glibmm)
 - [libb64](http://libb64.sourceforge.net/)
-- [catch](https://github.com/catchorg/Catch2) for unit tests
+- [Catch2](https://github.com/catchorg/Catch2) (v3) for unit tests
 - getopt (util-linux)
 
 ## Caching
