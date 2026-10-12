@@ -7,32 +7,24 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   build-and-test:
     name: Build and test
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    container:
+      image: ghcr.io/sim590/dpaste-ci:opendht-3.0.1
+      credentials:
+        username: sim590
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build CI environment image (cached)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/DockerfileBase
-          tags: dpaste-ci-base:latest
-          load: true
-          cache-from: type=gha,scope=dpaste-base
-          cache-to: type=gha,scope=dpaste-base,mode=max
-
-      # Docker's local image store contains the base image loaded above.
       - name: Build dpaste
-        run: docker build -t dpaste-ci -f docker/DockerfileCI .
+        run: ./autogen.sh && ./configure --enable-tests && make -j"$(nproc)"
 
       - name: Run unit tests
-        run: docker run --rm dpaste-ci /bin/sh -c 'cd /root/dpaste && make test'
+        run: make test
