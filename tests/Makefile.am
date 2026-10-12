@@ -5,7 +5,8 @@ dptest_SOURCES = \
 				 bin.cpp \
 				 node.cpp \
 				 conf.cpp \
-				 aes.cpp
+				 aes.cpp \
+				 http_client.cpp
 
 # Variables defined in toplevel Makefile. Thus, `make check` cannot be called
 # from this directory.

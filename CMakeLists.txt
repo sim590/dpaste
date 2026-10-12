@@ -72,6 +72,7 @@ if(DPASTE_BUILD_TESTS)
         tests/node.cpp
         tests/conf.cpp
         tests/aes.cpp
+        tests/http_client.cpp
     )
     target_include_directories(dptest PRIVATE src)
     target_link_libraries(dptest PRIVATE dpaste_lib Catch2::Catch2WithMain)
