@@ -1,5 +1,5 @@
 # Dependencies for building and testing dpaste in CI.
-FROM debian:bookworm-slim
+FROM ubuntu:24.04
 LABEL maintainer="Simon Désaulniers <sim.desaulniers@gmail.com>"
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -8,8 +8,6 @@ RUN apt-get update \
         automake \
         pkg-config \
         ca-certificates \
-        cmake \
-        git \
         libopendht-dev \
         libb64-dev \
         libcurlpp-dev \
@@ -18,23 +16,7 @@ RUN apt-get update \
         libgpgme-dev \
         nlohmann-json3-dev \
         libglibmm-2.4-dev \
+        catch2 \
     && rm -rf /var/lib/apt/lists/*
-
-# The test suite needs Catch2 v3, which provides the `catch2-with-main`
-# pkg-config module. Debian bookworm only ships Catch2 v2, so build v3 from
-# source and install it under /usr/local (which is on pkg-config's default
-# search path).
-ARG CATCH2_VERSION=v3.16.1
-RUN git clone --depth 1 --branch "${CATCH2_VERSION}" \
-        https://github.com/catchorg/Catch2.git /tmp/Catch2 \
-    && cmake -S /tmp/Catch2 -B /tmp/Catch2/build \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX=/usr/local \
-        -DCMAKE_INSTALL_LIBDIR=lib \
-        -DCATCH_INSTALL_DOCS=OFF \
-        -DCATCH_INSTALL_EXTRAS=OFF \
-    && cmake --build /tmp/Catch2/build -j"$(nproc)" \
-    && cmake --install /tmp/Catch2/build \
-    && rm -rf /tmp/Catch2
 
 #  vim: set ft=dockerfile ts=4 sw=4 tw=120 et :
