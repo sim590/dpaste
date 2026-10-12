@@ -27,7 +27,7 @@
 
 /* Included after the project headers: OpenDHT's log_enable.h defines a `WARN`
  * member that collides with Catch2's WARN() macro. */
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 namespace dpaste {
 namespace tests {

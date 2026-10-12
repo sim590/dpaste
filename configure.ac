@@ -37,7 +37,7 @@ AC_ARG_ENABLE([tests], AS_HELP_STRING([--enable-tests], [Enables unit tests comp
 AM_CONDITIONAL([DPASTE_TEST], [test "x$enable_tests" = "xyes"])
 AM_COND_IF([DPASTE_TEST],
            [
-            PKG_CHECK_MODULES([CATCH2], [catch2])
+            PKG_CHECK_MODULES([CATCH2], [catch2-with-main >= 3.0])
             AC_DEFINE([DPASTE_TEST], [1], [Unit tests])
             AC_CONFIG_FILES([tests/Makefile])
            ])
