@@ -61,6 +61,14 @@ $ make
 
 You'll then find the binary under `src/` directory.
 
+The unit tests are built with `--enable-tests` and run from the top-level
+directory (requires Catch2 v3):
+
+```sh
+$ ./configure --enable-tests
+$ make test
+```
+
 ### Using CMake
 
 ```sh
@@ -70,6 +78,14 @@ $ make
 ```
 
 You'll then find the binary `dpaste` under `build` directory.
+
+The unit tests are opt-in and run through CTest (requires Catch2 v3):
+
+```sh
+$ cmake .. -DDPASTE_BUILD_TESTS=ON
+$ make
+$ ctest
+```
 
 ### Running the local OpenDHT proxy
 
