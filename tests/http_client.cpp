@@ -36,22 +36,19 @@ namespace tests {
 
 class FakeHttpServer {
 public:
-    explicit FakeHttpServer(const std::string& response_body)
-        : response_body(response_body) {
+    explicit FakeHttpServer(const std::string& response_body) : response_body(response_body) {
         listen_fd = socket(AF_INET, SOCK_STREAM, 0);
         REQUIRE(listen_fd >= 0);
 
         sockaddr_in address {};
-        address.sin_family = AF_INET;
+        address.sin_family      = AF_INET;
         address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-        address.sin_port = htons(0);
-        REQUIRE(bind(listen_fd, reinterpret_cast<sockaddr*>(&address),
-                sizeof(address)) == 0);
+        address.sin_port        = htons(0);
+        REQUIRE(bind(listen_fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
         REQUIRE(listen(listen_fd, 1) == 0);
 
         socklen_t length = sizeof(address);
-        REQUIRE(getsockname(listen_fd, reinterpret_cast<sockaddr*>(&address),
-                &length) == 0);
+        REQUIRE(getsockname(listen_fd, reinterpret_cast<sockaddr*>(&address), &length) == 0);
         server_port = ntohs(address.sin_port);
         worker = std::thread(&FakeHttpServer::serve, this);
     }
@@ -87,7 +84,7 @@ private:
         const auto header_end = request_data.find("\r\n\r\n");
         if (header_end != std::string::npos) {
             const auto content_length = request_data.find("Content-Length:");
-            size_t body_length = 0;
+            size_t body_length        = 0;
             if (content_length != std::string::npos)
                 body_length = std::stoul(request_data.substr(content_length + 15));
 
@@ -100,12 +97,11 @@ private:
         }
 
         const std::string response = "HTTP/1.1 200 OK\r\n"
-            "Content-Length: " + std::to_string(response_body.size()) + "\r\n"
-            "Connection: close\r\n\r\n" + response_body;
+                "Content-Length: " + std::to_string(response_body.size()) + "\r\n"
+                "Connection: close\r\n\r\n" + response_body;
         size_t sent = 0;
         while (sent < response.size()) {
-            const auto count = send(client_fd, response.data() + sent,
-                    response.size() - sent, 0);
+            const auto count = send(client_fd, response.data() + sent, response.size() - sent, 0);
             if (count <= 0)
                 break;
             sent += static_cast<size_t>(count);
@@ -113,7 +109,7 @@ private:
         close(client_fd);
     }
 
-    int listen_fd = -1;
+    int listen_fd    = -1;
     long server_port = 0;
     std::string response_body;
     std::string request_data;
@@ -125,9 +121,9 @@ static long closed_loopback_port() {
     REQUIRE(fd >= 0);
 
     sockaddr_in address {};
-    address.sin_family = AF_INET;
+    address.sin_family      = AF_INET;
     address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    address.sin_port = htons(0);
+    address.sin_port        = htons(0);
     REQUIRE(bind(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
 
     socklen_t length = sizeof(address);
