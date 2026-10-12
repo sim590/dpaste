@@ -18,6 +18,8 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string>
+
 namespace dpaste {
 namespace tests {
 
