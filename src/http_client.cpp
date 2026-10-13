@@ -18,60 +18,88 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <fstream>
+#include <algorithm>
+#include <cstdint>
+#include <list>
+#include <sstream>
 
 #include <curlpp/cURLpp.hpp>
 #include <curlpp/Easy.hpp>
+#include <curlpp/Options.hpp>
 #include <curlpp/Exception.hpp>
 #include <curlpp/Infos.hpp>
 #include <nlohmann/json.hpp>
 #include <b64/decode.h>
-
-#include "curlpp/Options.hpp"
+#include <b64/encode.h>
 
 #include "http_client.h"
+#include "log.h"
 #include "node.h"
 
 namespace dpaste {
 
 using json = nlohmann::json;
 
-static std::ofstream null("/dev/null");
+namespace {
+
+std::string urlHost(const std::string& host) {
+    if (host.size() >= 2 && host.front() == '[' && host.back() == ']')
+        return host;
+    if (host.find(':') != std::string::npos)
+        return "[" + host + "]";
+    return host;
+}
+
+} /* anonymous namespace */
 
 bool HttpClient::isAvailable() const {
     return put(dht::InfoHash::getRandom().toString(), "hello world");
 }
 
-std::vector<std::string> HttpClient::get(const std::string& code) const {
+std::string HttpClient::get(const std::string& code) const {
     try {
         curlpp::Cleanup mycleanup;
         curlpp::Easy req;
-        req.setOpt<curlpp::options::Port>(port);
         std::stringstream response;
-        std::vector<std::string> data;
-        req.setOpt<curlpp::options::Url>(HTTP_PROTO+
-                host+"/"+dht::InfoHash::get(code).toString()
-                +"?user_type="+dpaste::Node::DPASTE_USER_TYPE
-        );
+        req.setOpt<curlpp::options::Port>(port);
+        req.setOpt<curlpp::options::Url>(HTTP_PROTO + urlHost(host) + "/key/" +
+                dht::InfoHash::get(code).toString());
         req.setOpt(curlpp::Options::WriteStream(&response));
 
         try {
             req.perform();
             /* server gives code 200 when everything is fine. */
             if (curlpp::Infos::ResponseCode::get(req) == 200) {
-                auto pr = json::parse(response.str());
-                for (const auto& entry : pr) {
-                    std::istringstream iss(entry["base64"].dump());
-                    std::stringstream oss;
-                    base64::decoder d;
-                    d.decode(iss, oss);
-                    data.emplace_back(oss.str());
+                /* DhtProxyServer returns one JSON Value per line; do not parse
+                 * the whole response as a single JSON document. */
+                std::istringstream lines(response.str());
+                std::string line;
+                while (std::getline(lines, line)) {
+                    try {
+                        const auto value = json::parse(line);
+                        if (value.is_object() &&
+                            value.value("utype", std::string {}) == Node::DPASTE_USER_TYPE &&
+                            value.contains("data") && value["data"].is_string()) {
+                            std::istringstream encoded(value["data"].get<std::string>());
+                            std::ostringstream decoded;
+                            base64::decoder decoder;
+                            decoder.decode(encoded, decoded);
+                            return decoded.str();
+                        }
+                    } catch (const std::exception&) {
+                        /* Ignore malformed or incompatible Value objects. */
+                    }
                 }
             }
-        } catch (curlpp::RuntimeError & e) { }
+        } catch (curlpp::RuntimeError & e) {
+            DPASTE_MSG("%s", e.what());
+        }
 
-        return data;
-    } catch (curlpp::LogicError & e) { return {}; }
+        return {};
+    } catch (curlpp::LogicError & e) {
+        DPASTE_MSG("%s", e.what());
+        return {};
+    }
 }
 
 bool HttpClient::put(const std::string& code, const std::string& data) const {
@@ -79,22 +107,41 @@ bool HttpClient::put(const std::string& code, const std::string& data) const {
         curlpp::Cleanup mycleanup;
         curlpp::Easy req;
         req.setOpt<curlpp::options::Port>(port);
-        req.setOpt<curlpp::options::Url>(HTTP_PROTO+host+"/"+dht::InfoHash::get(code).toString());
-        req.setOpt(curlpp::Options::WriteStream(&null));
-        {
-            curlpp::Forms form_parts;
-            form_parts.push_back(new curlpp::FormParts::Content("user_type", dpaste::Node::DPASTE_USER_TYPE));
-            form_parts.push_back(new curlpp::FormParts::Content("data", data));
-            req.setOpt(new curlpp::options::HttpPost(form_parts));
-        }
+        req.setOpt<curlpp::options::Url>(HTTP_PROTO + urlHost(host) + "/key/" +
+                dht::InfoHash::get(code).toString());
+
+        std::istringstream input(data);
+        std::ostringstream encoded;
+        base64::encoder encoder;
+        encoder.encode(input, encoded);
+
+        /* libb64 wraps long output lines; the proxy expects one compact
+         * standard-base64 string in the JSON Value. */
+        auto encoded_data = encoded.str();
+        encoded_data.erase(std::remove_if(encoded_data.begin(), encoded_data.end(),
+                [](char c) { return c == '\r' || c == '\n'; }), encoded_data.end());
+
+        const auto body = json {
+            {"data", encoded_data},
+            {"utype", Node::DPASTE_USER_TYPE}
+        }.dump();
+        req.setOpt(curlpp::Options::PostFields(body));
+        req.setOpt(new curlpp::options::HttpHeader(
+                std::list<std::string> {"Content-Type: application/json"}));
+        std::stringstream response;
+        req.setOpt(curlpp::Options::WriteStream(&response));
 
         try {
             req.perform();
             return curlpp::Infos::ResponseCode::get(req) == 200;
         } catch (curlpp::RuntimeError & e) {
+            DPASTE_MSG("%s", e.what());
             return false;
         }
-    } catch (curlpp::LogicError & e) { return false; }
+    } catch (curlpp::LogicError & e) {
+        DPASTE_MSG("%s", e.what());
+        return false;
+    }
 }
 
 } /* dpaste */

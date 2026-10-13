@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.20)
 project(dpaste)
-set(dpaste_VERSION 0.4.0)
+include(GNUInstallDirs)
+set(dpaste_VERSION 0.5.0)
 add_definitions(-DVERSION="${dpaste_VERSION}")
 add_definitions(-DPACKAGE_NAME="dpaste")
 
@@ -15,7 +16,7 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 ############################
 #  Find required packages  #
 ############################
-find_package(opendht 1.2.0 REQUIRED)
+find_package(opendht 2.4.9 REQUIRED)
 find_package(CURLpp REQUIRED)
 find_package(glibmm REQUIRED)
 find_package(B64 REQUIRED)
@@ -37,7 +38,6 @@ list(APPEND dpaste_HEADERS
 	src/aescrypto.h
 )
 list(APPEND dpaste_SOURCES
-    src/main.cpp
     src/node.cpp
     src/conf.cpp
     src/http_client.cpp
@@ -48,17 +48,43 @@ list(APPEND dpaste_SOURCES
 	src/aescrypto.cpp
 )
 
-#################################
-#  dpaste building and linking  #
-#################################
+#####################################
+#  dpaste library and executable    #
+#####################################
 include_directories(${CURLPP_INCLUDE_DIRS} ${glibmm_INCLUDE_DIRS} ${B64_INCLUDE_DIRS} ${GPGME_INCLUDE_DIRS})
-add_executable(dpaste ${dpaste_SOURCES} ${dpaste_HEADERS})
-target_link_libraries(dpaste LINK_PUBLIC -lopendht -lgnutls -lnettle -largon2 -lpthread ${CURLPP_LIBRARIES} ${glibmm_LIBRARIES} ${B64_LIBRARIES} -lgpgmepp ${GPGME_VANILLA_LIBRARIES})
+add_library(dpaste_lib STATIC ${dpaste_SOURCES} ${dpaste_HEADERS})
+target_link_libraries(dpaste_lib PUBLIC -lopendht -lgnutls -lnettle -largon2 -lpthread ${CURLPP_LIBRARIES} ${glibmm_LIBRARIES} ${B64_LIBRARIES} -lgpgmepp ${GPGME_VANILLA_LIBRARIES})
+
+add_executable(dpaste src/main.cpp)
+target_link_libraries(dpaste PRIVATE dpaste_lib)
+
+#####################
+#  unit tests       #
+#####################
+option(DPASTE_BUILD_TESTS "Build the unit tests" OFF)
+if(DPASTE_BUILD_TESTS)
+    enable_testing()
+    target_compile_definitions(dpaste_lib PUBLIC DPASTE_TEST)
+    find_package(Catch2 3 REQUIRED)
+    add_executable(dptest
+        tests/tests.cpp
+        tests/bin.cpp
+        tests/node.cpp
+        tests/conf.cpp
+        tests/aes.cpp
+        tests/http_client.cpp
+    )
+    target_include_directories(dptest PRIVATE src)
+    target_link_libraries(dptest PRIVATE dpaste_lib Catch2::Catch2WithMain)
+    include(Catch)
+    catch_discover_tests(dptest WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
 
 #####################
 #  install targets  #
 #####################
-install(TARGETS dpaste DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
+install(TARGETS dpaste RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES systemd/dpaste-dhtnode.service
+        DESTINATION lib/systemd/user)
 
 #  vim: set ts=4 sw=4 tw=120 noet :
-

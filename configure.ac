@@ -1,4 +1,4 @@
-AC_INIT(dpaste, 0.4.0)
+AC_INIT(dpaste, 0.5.0)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h])
@@ -18,7 +18,7 @@ AS_IF([test "x$enable_debug" = "xyes"],
 AC_PROG_CXX
 AC_PROG_RANLIB
 
-PKG_CHECK_MODULES([OpenDHT], [opendht >= 1.2])
+PKG_CHECK_MODULES([OpenDHT], [opendht >= 2.4.9])
 PKG_CHECK_MODULES([CURLPP], [curlpp])
 PKG_CHECK_MODULES([GLIBMM], [glibmm-2.4])
 
@@ -37,7 +37,7 @@ AC_ARG_ENABLE([tests], AS_HELP_STRING([--enable-tests], [Enables unit tests comp
 AM_CONDITIONAL([DPASTE_TEST], [test "x$enable_tests" = "xyes"])
 AM_COND_IF([DPASTE_TEST],
            [
-            PKG_CHECK_MODULES([CATCH2], [catch2])
+            PKG_CHECK_MODULES([CATCH2], [catch2-with-main >= 3.0])
             AC_DEFINE([DPASTE_TEST], [1], [Unit tests])
             AC_CONFIG_FILES([tests/Makefile])
            ])

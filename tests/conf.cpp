@@ -18,9 +18,9 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "conf.h"
+#include <catch2/catch_test_macros.hpp>
 
-#include "catch.h"
+#include "conf.h"
 
 namespace dpaste {
 namespace tests {

@@ -61,6 +61,14 @@ $ make
 
 You'll then find the binary under `src/` directory.
 
+The unit tests are built with `--enable-tests` and run from the top-level
+directory (requires Catch2 v3):
+
+```sh
+$ ./configure --enable-tests
+$ make test
+```
+
 ### Using CMake
 
 ```sh
@@ -71,23 +79,72 @@ $ make
 
 You'll then find the binary `dpaste` under `build` directory.
 
+The unit tests are opt-in and run through CTest (requires Catch2 v3):
+
+```sh
+$ cmake .. -DDPASTE_BUILD_TESTS=ON
+$ make
+$ ctest
+```
+
+### Running the local OpenDHT proxy
+
+dpaste sends HTTP requests to the OpenDHT `DhtProxyServer` at
+ `127.0.0.1:6509` first. If the proxy is unavailable, it falls back to a
+transient local DHT node. The proxy avoids creating a DHT node for every
+invocation and retains routing state between commands. OpenDHT must still
+locate the nodes responsible for each random paste key, so this does not
+guarantee an instant paste.
+
+The optional systemd user unit can be installed with either build system (as
+part of the normal install):
+
+```sh
+$ make install                 # Autotools
+# or: cmake --install build    # CMake
+$ systemctl --user daemon-reload
+$ systemctl --user enable --now dpaste-dhtnode.service
+$ systemctl --user status dpaste-dhtnode.service
+```
+
+Verify that the loopback proxy is reachable with:
+
+```sh
+$ curl --fail --max-time 5 http://127.0.0.1:6509/node/info
+```
+
+The command returns information about the local node. The unit runs `dhtnode`
+in the foreground and binds its proxy to loopback only. It stores dhtnode's
+persistent routing state in the XDG cache directory via systemd
+`CacheDirectory=dpaste`.
+
 ## Package
 
 Archlinux AUR: https://aur.archlinux.org/packages/dpaste/
 
-Milis Linux:   mps kur dpaste  (https://github.com/milisarge/malfs-milis/blob/master/talimatname/genel/dpaste/talimat)
+Milis Linux: mps kur dpaste (https://github.com/milisarge/malfs-milis/blob/master/talimatname/genel/d/dpaste/talimat)
 
 ## Dependencies
 
-- [OpenDHT](https://github.com/savoirfairelinux/opendht/) (minimal version: 1.2.0)
+- [OpenDHT](https://github.com/savoirfairelinux/opendht/) (recommended version: 3.0.1)
 - [msgpack-c](https://github.com/msgpack/msgpack-c)
 - [gpgmepp](https://github.com/KDE/gpgmepp)
-- [json.hpp](https://github.com/nlohmann/json) (required version for CMake: 2.1.1)
-- [cURLpp](https://github.com/jpbarrette/curlpp) (minimal version: 0.8.1)
+- [json.hpp](https://github.com/nlohmann/json) (required version for CMake: 3)
+- [cURLpp](https://github.com/jpbarrette/curlpp) (0.8.1 is known to fail to build. Use master branch of curlpp repo until a new release is made)
 - [glibmm](https://github.com/GNOME/glibmm)
 - [libb64](http://libb64.sourceforge.net/)
-- Getopt
-- [catch](https://github.com/catchorg/Catch2) for unit tests
+- [Catch2](https://github.com/catchorg/Catch2) (v3) for unit tests
+- getopt (util-linux)
+
+## Caching
+
+To avoid the multi-second DHT cold start on every invocation, `dpaste` caches
+the OpenDHT node state (including its routing table) on disk. The cache lives
+in `${XDG_CACHE_HOME}/dpaste` (usually `~/.cache/dpaste`) and can be relocated
+with the `DPASTE_CACHE_DIR` environment variable. The state is refreshed at
+the end of every run, allowing known peers to be reused and improving
+bootstrap resilience. The first run remains slow, and random-key lookups on
+the public DHT still cannot be eliminated.
 
 ## Pastebin over DHT
 
@@ -101,8 +158,7 @@ not likely to be "down".
   multiple locations, see #17);
 - Support for multi-lingual interface (--help, info/debug messages, see #18);
 - Support for longer paste life time (OpenDHT's default is 10 minutes, see #19);
-- Switch from the currently used [small python REST API server script][pyserver] to
-  OpenDHT's proxy (see #20);
+- ~~Switch from the currently used [small python REST API server script][pyserver] to OpenDHT's proxy (see #20)~~;
 - Improve the logging code (with dedicated library?);
 - ~~Password based encryption (AES using gnutls)~~;
 - ~~Add user configuration file system;~~

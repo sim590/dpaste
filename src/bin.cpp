@@ -76,49 +76,47 @@ Bin::parse_code_info(const std::string& code) {
 
 std::vector<uint8_t>
 Bin::parse_data(const std::string& code,
-                std::vector<std::vector<uint8_t>>&& values,
+                std::vector<uint8_t>&& value,
                 std::string pwd,
                 bool no_decrypt) const
 {
-    for (const auto& v : values) {
-        try {
-            Packet p;
-            p.deserialize(v);
-            std::vector<uint8_t> data;
-            auto cipher = crypto::Cipher::get(p.data, code);
+    try {
+        Packet p;
+        p.deserialize(value);
+        std::vector<uint8_t> data;
+        auto cipher = crypto::Cipher::get(p.data, code);
 
-            if (cipher and not no_decrypt) {
-                std::shared_ptr<crypto::Parameters> params;
-                if (auto aes = std::dynamic_pointer_cast<crypto::AES>(cipher)) {
-                    params = std::make_shared<crypto::Parameters>();
-                    params->emplace<crypto::AESParameters>(pwd);
-                }
-                data = cipher->processCipherText(p.data, std::move(params));
-            } else
-                data = std::move(p.data);
-
-            if (not (cipher or p.signature.empty())) {
-                auto gc = std::dynamic_pointer_cast<crypto::GPG>(crypto::Cipher::get(crypto::Cipher::Scheme::GPG, {}));
-                DPASTE_MSG("Data is GPG signed. Verifying...");
-                auto res = gc->verify(p.signature, data);
-                if (res.numSignatures() > 0)
-                    gc->comment_on_signature(res.signature(0));
+        if (cipher and not no_decrypt) {
+            std::shared_ptr<crypto::Parameters> params;
+            if (auto aes = std::dynamic_pointer_cast<crypto::AES>(cipher)) {
+                params = std::make_shared<crypto::Parameters>();
+                params->emplace<crypto::AESParameters>(pwd);
             }
+            data = cipher->processCipherText(p.data, std::move(params));
+        } else
+            data = std::move(p.data);
 
-            return data;
-        } catch (const GpgME::Exception& e) {
-            DPASTE_MSG("%s", e.what());
-            return {};
-        } catch (const dht::crypto::DecryptError& e) {
-            DPASTE_MSG("%s", e.what());
-            return {};
-        } catch (msgpack::type_error& e) { } /* backward compatibility with <=0.3.3 */
-    }
+        if (not (cipher or p.signature.empty())) {
+            auto gc = std::dynamic_pointer_cast<crypto::GPG>(crypto::Cipher::get(crypto::Cipher::Scheme::GPG, {}));
+            DPASTE_MSG("Data is GPG signed. Verifying...");
+            auto res = gc->verify(p.signature, data);
+            if (res.numSignatures() > 0)
+                gc->comment_on_signature(res.signature(0));
+        }
+
+        return data;
+    } catch (const GpgME::Exception& e) {
+        DPASTE_MSG("%s", e.what());
+        return {};
+    } catch (const dht::crypto::DecryptError& e) {
+        DPASTE_MSG("%s", e.what());
+        return {};
+    } catch (msgpack::type_error& e) { } /* backward compatibility with <=0.3.3 */
 
     return {};
 }
 
-std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
+std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool no_proxy) {
     code = code_from_dpaste_uri(code);
     const auto parsed_code = parse_code_info(code);
     const auto& lcode      = std::get<0>(parsed_code);
@@ -128,19 +126,20 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
     std::vector<Packet> packets(npackets);
 
     auto available = http_client_->isAvailable();
-    auto get_method = [this,&available](const auto& c) {
+    auto get_method = [this,&available,&no_proxy](const auto& c) {
         /* if available, try http server */
-        if (available) {
-            auto datas = http_client_->get(c);
-            std::vector<std::vector<uint8_t>> data;
-            std::transform(datas.begin(), datas.end(), std::back_inserter(data), [](const auto& s) {
-                std::vector<uint8_t> blob;
-                std::move(s.begin(), s.end(), std::back_inserter(blob));
-                return blob;
-            });
-            return data;
+        if (available and not no_proxy) {
+            auto data = http_client_->get(c);
+            std::vector<uint8_t> blob;
+            std::move(data.begin(), data.end(), std::back_inserter(blob));
+            return blob;
         /* if fail, then perform request from local node */
-        } else return node.get(c);
+        } else {
+            auto values = node.get(c);
+            if (not values.empty())
+                return values.front();
+        }
+        return std::vector<uint8_t> {};
     };
 
     std::vector<uint8_t> whole_data;
@@ -151,8 +150,8 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt) {
     }
     for (uint8_t s = 0; s < npackets; ++s) {
         std::string target = code_from_pin(licode + s);
-        auto values        = get_method(target);
-        auto data          = parse_data(code, std::move(values), pwd, no_decrypt);
+        auto value         = get_method(target);
+        auto data          = parse_data(code, std::move(value), pwd, no_decrypt);
         if (data.empty())
             return {false, {}};
         std::move(data.begin(), data.end(), std::back_inserter(whole_data));
@@ -240,12 +239,12 @@ Bin::prepare_data(std::stringstream&& input_stream,
 }
 
 std::string
-Bin::paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params) {
+Bin::paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy) {
     auto pin          = random_.integer();
     auto available    = http_client_->isAvailable();
-    auto paste_method = [this,&available](const auto& c, auto&& d) {
-        if (available) return http_client_->put(c, {d.begin(), d.end()});
-        else           return node.paste(c, std::forward<std::vector<uint8_t>>(d));
+    auto paste_method = [this,&available,&no_proxy](const auto& c, auto&& d) {
+        if (available and not no_proxy) return http_client_->put(c, {d.begin(), d.end()});
+        else                            return node.paste(c, std::forward<std::vector<uint8_t>>(d));
     };
 
     auto pp = prepare_data(std::forward<std::stringstream>(input_stream),

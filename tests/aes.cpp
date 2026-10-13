@@ -20,10 +20,10 @@
 
 #include <memory>
 
+#include <catch2/catch_test_macros.hpp>
+
 #include "cipher.h"
 #include "aescrypto.h"
-
-#include "catch.h"
 
 namespace dpaste {
 namespace tests {

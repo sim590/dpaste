@@ -21,10 +21,12 @@
 #include <algorithm>
 
 #include "code.h"
+#include "tests.h"
 #include "bin.h"
 
-#include "catch.h"
-#include "tests.h"
+/* Included after the project headers: OpenDHT's log_enable.h defines a `WARN`
+ * member that collides with Catch2's WARN() macro. */
+#include <catch2/catch_test_macros.hpp>
 
 namespace dpaste {
 namespace tests {
@@ -57,11 +59,11 @@ public:
 
 void test_paste(Bin& bin, const std::vector<uint8_t>& data) {
     using pbt = PirateBinTester;
-    auto code = bin.paste(std::vector<uint8_t> {data}, {});
+    auto code = bin.paste(std::vector<uint8_t> {data}, {}, true);
     CATCH_REQUIRE ( code.size() == pbt::dpaste_uri_prefix().size()+code::DPASTE_PIN_LEN+code::DPASTE_NPACKETS_LEN );
 
     CATCH_SECTION ( "getting pasted blob back from the DHT" ) {
-        auto rd = bin.get(std::move(code)).second;
+        auto rd = bin.get(std::move(code), true).second;
         std::vector<uint8_t> rdv {rd.begin(), rd.end()};
         CATCH_REQUIRE ( data == rdv );
     }
@@ -71,11 +73,11 @@ void test_paste_encrypted(Bin& bin, const std::vector<uint8_t>& data) {
     using pbt = PirateBinTester;
     auto p = std::make_unique<dpaste::crypto::Parameters>();
     p->emplace<crypto::AESParameters>();
-    auto code = bin.paste(std::vector<uint8_t> {data}, std::move(p));
+    auto code = bin.paste(std::vector<uint8_t> {data}, std::move(p), true);
     CATCH_REQUIRE ( code.size() == pbt::dpaste_uri_prefix().size()+code::DPASTE_PIN_LEN+code::DPASTE_NPACKETS_LEN+code::PASSWORD_LEN );
 
     CATCH_SECTION ( "getting pasted AES encrypted blob back from the DHT" ) {
-        auto rd = bin.get(std::move(code)).second;
+        auto rd = bin.get(std::move(code), true).second;
         std::vector<uint8_t> rdv {rd.begin(), rd.end()};
         CATCH_REQUIRE ( data == rdv );
     }
@@ -86,7 +88,7 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
     Bin bin {};
     crypto::Cipher::init();
     CATCH_SECTION ( "pasting data {0,1,2,3,4}" ) {
-        test_paste(bin, data);
+        test_paste(bin, data, true);
     }
     CATCH_SECTION ( "pasting AES encrypted {0,1,2,3,4}" ) {
         test_paste_encrypted(bin, data);
@@ -99,7 +101,7 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
             CATCH_SECTION ( "trying for size of " + ss.str() + "B" ) {
                 std::vector<uint8_t> buffer(s);
                 CATCH_SECTION ( "plain data" ) {
-                    test_paste(bin, buffer);
+                    test_paste(bin, buffer, true);
                 }
                 CATCH_SECTION ( "AES encrypted data" ) {
                     test_paste_encrypted(bin, buffer);

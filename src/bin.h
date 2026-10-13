@@ -60,26 +60,28 @@ public:
      *
      * @param code        The PIN for finding data in DHT.
      * @param no_decrypt  Whether to decrypt the recovered data or not.
+     * @param no_proxy    Whether to skip the proxy and read from the local DHT node.
      *
      * @return return code (0: success, 1 fail)
      */
-    std::pair<bool, std::string> get(std::string&& code, bool no_decrypt=false);
+    std::pair<bool, std::string> get(std::string&& code, bool no_decrypt=false, bool no_proxy=false);
 
     /**
      * Execute procedure to publish content and generate the associated code.
      *
-     * @param data    Data to be pasted.
-     * @param params  Cryptographic parameters.
+     * @param data     Data to be pasted.
+     * @param params   Cryptographic parameters.
+     * @param no_proxy Whether to skip the proxy and publish to the local DHT node.
      *
      * @return the code (key) to the pasted data. If empty, then process failed.
      */
-    std::string paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params) {
+    std::string paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy=false) {
         std::string is;
         std::move(data.begin(), data.end(), std::back_inserter(is));
         std::stringstream ss(std::move(is));
-        return paste(std::move(ss), std::forward<std::unique_ptr<crypto::Parameters>>(params));
+        return paste(std::move(ss), std::forward<std::unique_ptr<crypto::Parameters>>(params), no_proxy);
     }
-    std::string paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params);
+    std::string paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy=false);
 
 private:
     /* constants */
@@ -135,12 +137,11 @@ private:
     prepare_data(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params);
 
     /**
-     * Parses the DHT values recovered from the DHT get operation and returns
-     * the first value found the the given code identifier.
+     * Parses a DHT values recovered from the DHT get operation.
      *
      * @param code        String of bytes consisting in the location code
      *                    information.
-     * @param values      The values to parse.
+     * @param value       The value to parse.
      * @param pwd         The password used to decrypt the AES encrypted data
      *                    (if it was present in the input code).
      * @param no_decrypt  A bool indicating if the data should be decrypted
@@ -149,9 +150,9 @@ private:
      * @return The value (or part of the value) recovered from the DHT.
      */
     std::vector<uint8_t> parse_data(const std::string& code,
-                                     std::vector<std::vector<uint8_t>>&& values,
-                                     std::string pwd,
-                                     bool no_decrypt) const;
+                                    std::vector<uint8_t>&& value,
+                                    std::string pwd,
+                                    bool no_decrypt) const;
 
     /**
      * Get data from input stream.

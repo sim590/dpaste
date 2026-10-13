@@ -1,0 +1,22 @@
+# Dependencies for building and testing dpaste in CI.
+FROM ubuntu:24.04
+LABEL maintainer="Simon Désaulniers <sim.desaulniers@gmail.com>"
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        autoconf \
+        automake \
+        pkg-config \
+        ca-certificates \
+        libopendht-dev \
+        libb64-dev \
+        libcurlpp-dev \
+        libcurl4-openssl-dev \
+        libgpgmepp-dev \
+        libgpgme-dev \
+        nlohmann-json3-dev \
+        libglibmm-2.4-dev \
+        catch2 \
+    && rm -rf /var/lib/apt/lists/*
+
+#  vim: set ft=dockerfile ts=4 sw=4 tw=120 et :
