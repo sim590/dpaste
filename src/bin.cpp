@@ -20,7 +20,6 @@
 
 #include <sstream>
 #include <iostream>
-#include <array>
 #include <iomanip>
 #include <memory>
 #include <algorithm>
@@ -34,7 +33,6 @@
 #include "conf.h"
 #include "log.h"
 #include "gpgcrypto.h"
-#include "aescrypto.h"
 
 namespace dpaste {
 
