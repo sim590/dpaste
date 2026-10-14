@@ -68,8 +68,6 @@ public:
 
     void comment_on_signature(const GpgME::Signature& sig);
 
-    static bool isGPGencrypted(const std::vector<uint8_t>& d);
-
 private:
     GpgME::Key getKey(const std::string& key_id) const;
 

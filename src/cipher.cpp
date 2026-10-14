@@ -36,14 +36,6 @@ void Cipher::init() {
     initialized = true;
 }
 
-std::shared_ptr<Cipher> Cipher::get(const std::vector<uint8_t>& cipher_text, const std::string& pin="") {
-    if (GPG::isGPGencrypted(cipher_text))
-        return std::make_shared<GPG>();
-    else if (pin.size() == code::PIN_WITH_PASS_LEN)
-        return std::make_shared<AES>();
-    return {};
-}
-
 std::shared_ptr<Cipher> Cipher::get(Scheme scheme, std::shared_ptr<Parameters>&& params) {
     switch (scheme) {
         case Scheme::AES:

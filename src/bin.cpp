@@ -24,11 +24,13 @@
 #include <memory>
 #include <algorithm>
 #include <unistd.h>
+#include <type_traits>
 
 #include <msgpack.hpp>
 
 #include "bin.h"
 
+#include "cipher.h"
 #include "code.h"
 #include "conf.h"
 #include "log.h"
@@ -73,8 +75,7 @@ Bin::parse_code_info(const std::string& code) {
 }
 
 std::vector<uint8_t>
-Bin::parse_data(const std::string& code,
-                std::vector<uint8_t>&& value,
+Bin::parse_data(std::vector<uint8_t>&& value,
                 std::string pwd,
                 bool no_decrypt) const
 {
@@ -82,11 +83,11 @@ Bin::parse_data(const std::string& code,
         Packet p;
         p.deserialize(value);
         std::vector<uint8_t> data;
-        auto cipher = crypto::Cipher::get(p.data, code);
 
+        auto cipher = crypto::Cipher::get(p.data_scheme);
         if (cipher and not no_decrypt) {
             std::shared_ptr<crypto::Parameters> params;
-            if (auto aes = std::dynamic_pointer_cast<crypto::AES>(cipher)) {
+            if (p.data_scheme == crypto::Cipher::Scheme::AES) {
                 params = std::make_shared<crypto::Parameters>();
                 params->emplace<crypto::AESParameters>(pwd);
             }
@@ -108,6 +109,10 @@ Bin::parse_data(const std::string& code,
         return {};
     } catch (const dht::crypto::DecryptError& e) {
         DPASTE_MSG("%s", e.what());
+        return {};
+    } catch (msgpack::insufficient_bytes& e) {
+        DPASTE_MSG("%s", e.what());
+        DPASTE_MSG("Insufficient bytes to unpack the data. The data may be corrupted or missing.");
         return {};
     } catch (msgpack::type_error& e) { } /* backward compatibility with <=0.3.3 */
 
@@ -149,7 +154,7 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool 
     for (uint8_t s = 0; s < npackets; ++s) {
         std::string target = code_from_pin(licode + s);
         auto value         = get_method(target);
-        auto data          = parse_data(code, std::move(value), pwd, no_decrypt);
+        auto data          = parse_data(std::move(value), pwd, no_decrypt);
         if (data.empty())
             return {false, {}};
         std::move(data.begin(), data.end(), std::back_inserter(whole_data));
@@ -187,7 +192,7 @@ Bin::prepare_data(std::stringstream&& input_stream,
     std::string pwd = "";
     std::shared_ptr<crypto::Parameters> sparams(std::move(params));
     std::shared_ptr<crypto::Parameters> init_params;
-    crypto::Cipher::Scheme scheme;
+    crypto::Cipher::Scheme scheme {crypto::Cipher::Scheme::NONE};
 
     bool to_sign {false};
     if (auto gp = std::get_if<crypto::GPGParameters>(sparams.get())) {
@@ -214,7 +219,7 @@ Bin::prepare_data(std::stringstream&& input_stream,
     {
         rsiz += data.size();
 
-        Packet p;
+        Packet p { .data_scheme = scheme };
         if (cipher) {
             auto cipher_text = cipher->processPlainText(data, std::move(sparams));
             if (cipher_text.empty()) {
@@ -278,10 +283,12 @@ std::vector<uint8_t> Bin::Packet::serialize() const {
     msgpack::sbuffer buffer;
     msgpack::packer<msgpack::sbuffer> pk(&buffer);
 
-    pk.pack_map(3);
-    pk.pack("v");    pk.pack(PROTO_VERSION);
-    pk.pack("data"); pk.pack(data);
+    pk.pack_map(4);
+    pk.pack("v");         pk.pack(PROTO_VERSION);
+    pk.pack("scheme");    pk.pack(static_cast<std::underlying_type_t<crypto::Cipher::Scheme>>(data_scheme));
+    pk.pack("data");      pk.pack(data);
     pk.pack("signature"); pk.pack(signature);
+
     return {buffer.data(), buffer.data()+buffer.size()};
 }
 
@@ -290,6 +297,11 @@ void Bin::Packet::deserialize(const std::vector<uint8_t>& pbuffer) {
     auto msgpack_object = unpacked.get();
 
     data.clear();
+    if (auto d = findMapValue(msgpack_object, "scheme")) {
+        std::underlying_type_t<crypto::Cipher::Scheme> ds {};
+        d->convert(ds);
+        data_scheme = static_cast<crypto::Cipher::Scheme>(ds);
+    }
     if (auto d = findMapValue(msgpack_object, "data"))
         d->convert(data);
     signature.clear();

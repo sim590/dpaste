@@ -86,7 +86,7 @@ public:
 private:
     /* constants */
     static const constexpr char* DPASTE_URI_PREFIX = "dpaste:";
-    static const constexpr uint8_t PROTO_VERSION = 0;
+    static const constexpr uint8_t PROTO_VERSION   = 1;
 
     struct Packet {
         /**
@@ -96,6 +96,7 @@ private:
          */
         static const constexpr size_t EXTRA_SERIALIZATION_BYTES {12 * 1024};
 
+        crypto::Cipher::Scheme data_scheme {crypto::Cipher::Scheme::NONE};
         std::vector<uint8_t> data {};
         std::vector<uint8_t> signature {};
 
@@ -139,8 +140,6 @@ private:
     /**
      * Parses a DHT values recovered from the DHT get operation.
      *
-     * @param code        String of bytes consisting in the location code
-     *                    information.
      * @param value       The value to parse.
      * @param pwd         The password used to decrypt the AES encrypted data
      *                    (if it was present in the input code).
@@ -149,8 +148,7 @@ private:
      *
      * @return The value (or part of the value) recovered from the DHT.
      */
-    std::vector<uint8_t> parse_data(const std::string& code,
-                                    std::vector<uint8_t>&& value,
+    std::vector<uint8_t> parse_data(std::vector<uint8_t>&& value,
                                     std::string pwd,
                                     bool no_decrypt) const;
 

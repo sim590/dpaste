@@ -36,7 +36,7 @@ using Parameters = std::variant<GPGParameters, AESParameters>;
 
 class Cipher {
 public:
-    enum class Scheme : int { NONE=0, GPG, AES };
+    enum class Scheme : uint8_t { NONE=0, GPG, AES };
 
     virtual ~Cipher () {}
 
@@ -73,15 +73,6 @@ public:
      * @return A cipher
      */
     static std::shared_ptr<Cipher> get(Scheme scheme, std::shared_ptr<Parameters>&& init_params={});
-
-    /**
-     * Returns a cipher according to the cipher text put in parameters.
-     *
-     * @param cipher_text  The cipher text to guess the cipher from.
-     *
-     * @return A cipher
-     */
-    static std::shared_ptr<Cipher> get(const std::vector<uint8_t>& cipher_text, const std::string& pin);
 };
 
 struct GPGParameters {
