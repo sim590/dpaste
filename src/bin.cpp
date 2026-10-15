@@ -23,6 +23,7 @@
 #include <iomanip>
 #include <memory>
 #include <algorithm>
+#include <charconv>
 #include <unistd.h>
 #include <type_traits>
 
@@ -62,16 +63,43 @@ std::string Bin::code_from_dpaste_uri(const std::string& uri) {
     return uri.substr(p != std::string::npos ? p+DUP.length() : 0, code::PIN_WITH_PASS_LEN);
 }
 
-std::tuple<std::string, uint32_t, std::string>
+std::optional<code::Info>
 Bin::parse_code_info(const std::string& code) {
-    std::stringstream ns(code.substr(code::DPASTE_PIN_LEN, code::DPASTE_NPACKETS_LEN));
-    uint32_t npackets;
-    ns >> std::hex >> npackets;
-    return {
-        code.substr(0, code::DPASTE_PIN_LEN),
-        npackets,
-        code.substr(code::DPASTE_PIN_LEN+code::DPASTE_NPACKETS_LEN, code::PASSWORD_LEN)
-    };
+    /* Every format starts with the location pin, an hexadecimal number which
+     * is not zero-padded in releases before 0.4.0. */
+    const auto pin_end = code.data() + std::min<size_t>(code.size(), code::DPASTE_PIN_LEN);
+    uint32_t pin {};
+    const auto parsed_pin = std::from_chars(code.data(), pin_end, pin, 16);
+    if (parsed_pin.ec != std::errc{} or parsed_pin.ptr != pin_end)
+        return std::nullopt;
+
+    /* Releases up to 0.5.0 do not carry a packet count field. */
+    if (code.size() <= code::DPASTE_PIN_LEN)
+        return code::Info { code, pin, 1, "", code::Format::LEGACY_PIN };
+
+    const auto lcode = code.substr(0, code::DPASTE_PIN_LEN);
+    if (code.size() == code::LEGACY_PIN_WITH_PASS_LEN)
+        return code::Info { lcode, pin, 1,
+                            code.substr(code::DPASTE_PIN_LEN, code::PASSWORD_LEN),
+                            code::Format::LEGACY_PIN_PWD };
+
+    if (code.size() != code::DPASTE_PIN_LEN + code::DPASTE_NPACKETS_LEN
+            and code.size() != code::PIN_WITH_PASS_LEN)
+        return std::nullopt;
+
+    uint32_t npackets {};
+    const auto* first = code.data() + code::DPASTE_PIN_LEN;
+    const auto* last  = first + code::DPASTE_NPACKETS_LEN;
+    const auto parsed_npackets = std::from_chars(first, last, npackets, 16);
+    if (parsed_npackets.ec != std::errc{} or parsed_npackets.ptr != last or npackets == 0)
+        return std::nullopt;
+
+    const bool with_pwd = code.size() == code::PIN_WITH_PASS_LEN;
+    return code::Info {
+        lcode, pin, npackets,
+        with_pwd ? code.substr(code::DPASTE_PIN_LEN + code::DPASTE_NPACKETS_LEN, code::PASSWORD_LEN)
+                 : std::string {},
+        with_pwd ? code::Format::PIN_NPACKETS_PWD : code::Format::PIN_NPACKETS };
 }
 
 std::vector<uint8_t>
@@ -121,12 +149,14 @@ Bin::parse_data(std::vector<uint8_t>&& value,
 
 std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool no_proxy) {
     code = code_from_dpaste_uri(code);
-    const auto parsed_code = parse_code_info(code);
-    const auto& lcode      = std::get<0>(parsed_code);
-    const auto& npackets   = std::get<1>(parsed_code);
-    const auto& pwd        = std::get<2>(parsed_code);
-
-    std::vector<Packet> packets(npackets);
+    const auto code_info = parse_code_info(code);
+    if (not code_info) {
+        DPASTE_MSG("Invalid code: %s", code.c_str());
+        return {false, {}};
+    }
+    const auto& lcode    = code_info->lcode;
+    const auto& npackets = code_info->npackets;
+    const auto& pwd      = code_info->pwd;
 
     auto available = http_client_->isAvailable();
     auto get_method = [this,&available,&no_proxy](const auto& c) {
@@ -146,14 +176,11 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool 
     };
 
     std::vector<uint8_t> whole_data;
-    uint32_t licode;
-    {
-        std::stringstream css(lcode);
-        css >> std::hex >> licode;
-    }
     for (uint8_t s = 0; s < npackets; ++s) {
-        std::string target = code_from_pin(licode + s);
-        auto value         = get_method(target);
+        /* The first packet is looked up with the raw location code so that
+         * unpadded pins from releases before 0.4.0 keep their original key. */
+        const std::string target = s == 0 ? lcode : code_from_pin(code_info->pin + s);
+        auto value               = get_method(target);
         auto data          = parse_data(std::move(value), pwd, no_decrypt);
         if (data.empty())
             return {false, {}};

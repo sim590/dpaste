@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <memory>
 #include <map>
+#include <optional>
 #include <utility>
 
 #ifdef HAVE_CONFIG_H
@@ -34,6 +35,7 @@
 #include "node.h"
 #include "http_client.h"
 #include "cipher.h"
+#include "code.h"
 
 namespace dpaste {
 #ifdef DPASTE_TEST
@@ -172,15 +174,24 @@ private:
     static std::string code_from_dpaste_uri(const std::string& uri);
 
     /**
-     * Parses the input code into three separate parts consisting respectivly in
-     * the location code information, the number of packets the file is split
-     * into and the password used to decrypt AES encrypted data.
+     * Parses the input code.
+     *
+     * Supported formats all start with the location pin, optionally followed
+     * by a packet count and an AES password:
+     *
+     *     PIN                         (releases up to 0.5.0)
+     *     PIN + PASSWORD              (releases up to 0.5.0, AES)
+     *     PIN + NPACKETS              (with packet splitting)
+     *     PIN + NPACKETS + PASSWORD   (with packet splitting, AES)
+     *
+     * The code length is unambiguous for these formats, so parsing is
+     * dispatched on it.
      *
      * @param code  The input code.
      *
-     * @return The tuple described above.
+     * @return The parsed code information, or nothing if the code is invalid.
      */
-    static std::tuple<std::string, uint32_t, std::string> parse_code_info(const std::string& code);
+    static std::optional<code::Info> parse_code_info(const std::string& code);
 
     /**
      * Converts a number into its hexadecimal `len` bytes long string value
