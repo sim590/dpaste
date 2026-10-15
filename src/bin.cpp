@@ -108,8 +108,11 @@ Bin::parse_data(std::vector<uint8_t>&& value,
                 std::string pwd,
                 bool no_decrypt) const
 {
+    Packet p;
+    /* Whether the OpenPGP cipher was guessed by the legacy detection. If it
+     * was and decryption fails, the raw value is returned (see below). */
+    bool guessed_gpg {false};
     try {
-        Packet p;
         p.deserialize(value);
 
         std::shared_ptr<crypto::Cipher> cipher;
@@ -131,8 +134,11 @@ Bin::parse_data(std::vector<uint8_t>&& value,
             }
         } else if (not no_decrypt) {
             /* Packets written by releases up to 0.5.0 do not carry a scheme.
-             * Reproduce the detection used by those releases. */
+             * Reproduce the detection used by those releases. It is a guess:
+             * remember whether it selected OpenPGP so that a failed
+             * decryption can fall back to the raw value. */
             cipher = crypto::Cipher::getLegacy(p.data, pwd);
+            guessed_gpg = std::dynamic_pointer_cast<crypto::GPG>(cipher) != nullptr;
         }
 
         std::vector<uint8_t> data;
@@ -157,6 +163,12 @@ Bin::parse_data(std::vector<uint8_t>&& value,
         return data;
     } catch (const GpgME::Exception& e) {
         DPASTE_MSG("%s", e.what());
+        if (guessed_gpg) {
+            /* The OpenPGP detection may have misfired, or the value cannot
+             * be decrypted here. Return it as is rather than losing it. */
+            DPASTE_MSG("The value was detected as OpenPGP encrypted, but decryption failed. Returning the raw value.");
+            return p.data;
+        }
         return {};
     } catch (const dht::crypto::DecryptError& e) {
         DPASTE_MSG("%s", e.what());

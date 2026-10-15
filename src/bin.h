@@ -146,7 +146,8 @@ private:
      *
      * The data scheme stored in the packet selects the cipher. Packets without
      * a scheme (written by releases up to 0.5.0) fall back to the detection
-     * used by those releases.
+     * used by those releases; since that detection is a guess, a failed
+     * OpenPGP decryption returns the raw value instead of dropping it.
      *
      * @param value       The value to parse.
      * @param pwd         The password used to decrypt the AES encrypted data
