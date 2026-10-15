@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <cassert>
 #include <charconv>
+#include <cmath>
 #include <unistd.h>
 #include <type_traits>
 
@@ -243,7 +244,7 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool 
         return values;
     };
 
-    const uint32_t nkeys = (npackets + vpk - 1) / vpk;
+    const uint32_t nkeys = static_cast<uint32_t>(std::ceil(static_cast<double>(npackets) / vpk));
     std::vector<std::vector<uint8_t>> chunks(npackets);
     std::vector<bool> found(npackets, false);
 
