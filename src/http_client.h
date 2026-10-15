@@ -31,7 +31,8 @@ public:
     virtual ~HttpClient () {}
 
     /**
-     * Tells if the server responds to requests.
+     * Tells if the server responds to requests. This only issues a lightweight
+     * GET on the server's /node/stats endpoint.
      */
     bool isAvailable() const;
 
