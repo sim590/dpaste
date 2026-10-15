@@ -69,9 +69,10 @@ std::optional<code::Info>
 Bin::parse_code_info(const std::string& code) {
     /* Every format starts with the location pin, an hexadecimal number which
      * is not zero-padded in releases before 0.4.0. */
-    const auto pin_end = code.data() + std::min<size_t>(code.size(), code::DPASTE_PIN_LEN);
     uint32_t pin {};
+    const auto pin_end    = code.data() + std::min<size_t>(code.size(), code::DPASTE_PIN_LEN);
     const auto parsed_pin = std::from_chars(code.data(), pin_end, pin, 16);
+
     if (parsed_pin.ec != std::errc{} or parsed_pin.ptr != pin_end)
         return std::nullopt;
 
@@ -81,18 +82,22 @@ Bin::parse_code_info(const std::string& code) {
 
     const auto lcode = code.substr(0, code::DPASTE_PIN_LEN);
     if (code.size() == code::LEGACY_PIN_WITH_PASS_LEN)
-        return code::Info { lcode, pin, 1,
-                            code.substr(code::DPASTE_PIN_LEN, code::PASSWORD_LEN),
-                            code::Format::LEGACY_PIN_PWD };
+        return code::Info { lcode
+                          , pin
+                          , 1
+                          , code.substr(code::DPASTE_PIN_LEN, code::PASSWORD_LEN)
+                          , code::Format::LEGACY_PIN_PWD
+                          };
 
     if (code.size() != code::DPASTE_PIN_LEN + code::DPASTE_NPACKETS_LEN
             and code.size() != code::PIN_WITH_PASS_LEN)
         return std::nullopt;
 
     uint32_t npackets {};
-    const auto* first = code.data() + code::DPASTE_PIN_LEN;
-    const auto* last  = first + code::DPASTE_NPACKETS_LEN;
+    const auto* first          = code.data() + code::DPASTE_PIN_LEN;
+    const auto* last           = first + code::DPASTE_NPACKETS_LEN;
     const auto parsed_npackets = std::from_chars(first, last, npackets, 16);
+
     if (parsed_npackets.ec != std::errc{} or parsed_npackets.ptr != last or npackets == 0)
         return std::nullopt;
 
@@ -110,9 +115,9 @@ Bin::parse_data(std::vector<uint8_t>&& value,
                 bool no_decrypt) const
 {
     Packet p;
-    /* Whether the OpenPGP cipher was guessed by the legacy detection. If it
-     * was and decryption fails, the raw value is returned (see below). */
-    bool guessed_gpg {false};
+    bool guessed_gpg {false}; /* Whether the OpenPGP cipher was guessed by the legacy detection. If it
+                               * was and decryption fails, the raw value is returned (see below).
+                               */
     try {
         p.deserialize(value);
 
@@ -129,8 +134,9 @@ Bin::parse_data(std::vector<uint8_t>&& value,
                         cipher = crypto::Cipher::get(*p.data_scheme);
                     break;
                 default:
-                    DPASTE_MSG("Unknown data scheme (%u). Discarding the value.",
-                               static_cast<unsigned>(*p.data_scheme));
+                    DPASTE_MSG( "Unknown data scheme (%u). Discarding the value."
+                              , static_cast<unsigned>(*p.data_scheme)
+                              );
                     return {};
             }
         } else if (not no_decrypt) {
@@ -138,7 +144,7 @@ Bin::parse_data(std::vector<uint8_t>&& value,
              * Reproduce the detection used by those releases. It is a guess:
              * remember whether it selected OpenPGP so that a failed
              * decryption can fall back to the raw value. */
-            cipher = crypto::Cipher::getLegacy(p.data, pwd);
+            cipher      = crypto::Cipher::getLegacy(p.data, pwd);
             guessed_gpg = std::dynamic_pointer_cast<crypto::GPG>(cipher) != nullptr;
         }
 
@@ -154,8 +160,8 @@ Bin::parse_data(std::vector<uint8_t>&& value,
             data = std::move(p.data);
 
         if (not (cipher or p.signature.empty())) {
-            auto gc = std::dynamic_pointer_cast<crypto::GPG>(crypto::Cipher::get(crypto::Cipher::Scheme::GPG, {}));
             DPASTE_MSG("Data is GPG signed. Verifying...");
+            auto gc  = std::dynamic_pointer_cast<crypto::GPG>(crypto::Cipher::get(crypto::Cipher::Scheme::GPG, {}));
             auto res = gc->verify(p.signature, data);
             if (res.numSignatures() > 0)
                 gc->comment_on_signature(res.signature(0));
@@ -217,7 +223,7 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool 
          * unpadded pins from releases before 0.4.0 keep their original key. */
         const std::string target = s == 0 ? lcode : code_from_pin(code_info->pin + s);
         auto value               = get_method(target);
-        auto data          = parse_data(std::move(value), pwd, no_decrypt);
+        auto data                = parse_data(std::move(value), pwd, no_decrypt);
         if (data.empty())
             return {false, {}};
         std::move(data.begin(), data.end(), std::back_inserter(whole_data));
@@ -354,8 +360,7 @@ std::vector<uint8_t> Bin::Packet::serialize() const {
 
     pk.pack_map(4);
     pk.pack("v");         pk.pack(PROTO_VERSION);
-    pk.pack("scheme");    pk.pack(static_cast<std::underlying_type_t<crypto::Cipher::Scheme>>(
-                                  data_scheme.value()));
+    pk.pack("scheme");    pk.pack(static_cast<std::underlying_type_t<crypto::Cipher::Scheme>>(data_scheme.value()));
     pk.pack("data");      pk.pack(data);
     pk.pack("signature"); pk.pack(signature);
 
