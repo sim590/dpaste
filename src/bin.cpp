@@ -23,6 +23,7 @@
 #include <iomanip>
 #include <memory>
 #include <algorithm>
+#include <cassert>
 #include <charconv>
 #include <unistd.h>
 #include <type_traits>
@@ -343,13 +344,18 @@ findMapValue(msgpack::object& map, const std::string& key) {
 }
 
 std::vector<uint8_t> Bin::Packet::serialize() const {
+    /* Packets are always created with a data scheme (see prepare_data); a
+     * missing one is a bug. Fail hard rather than storing Scheme::NONE, which
+     * would make retrieval mistake encrypted data for plain data. */
+    assert(data_scheme.has_value());
+
     msgpack::sbuffer buffer;
     msgpack::packer<msgpack::sbuffer> pk(&buffer);
 
     pk.pack_map(4);
     pk.pack("v");         pk.pack(PROTO_VERSION);
     pk.pack("scheme");    pk.pack(static_cast<std::underlying_type_t<crypto::Cipher::Scheme>>(
-                                  data_scheme.value_or(crypto::Cipher::Scheme::NONE)));
+                                  data_scheme.value()));
     pk.pack("data");      pk.pack(data);
     pk.pack("signature"); pk.pack(signature);
 
