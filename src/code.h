@@ -55,9 +55,11 @@ static const constexpr size_t PIN_WITH_PASS_LEN {DPASTE_PIN_LEN + DPASTE_NPACKET
 static const constexpr size_t LEGACY_PIN_WITH_PASS_LEN {DPASTE_PIN_LEN + PASSWORD_LEN};
 
 /**
- * Layout of a parsed code.
+ * Layout of a parsed code. parse_code_info reports invalid codes with
+ * std::nullopt, so INVALID is only the value of a default-constructed Info.
  */
 enum class Format : uint8_t {
+    INVALID = 0,     /* not a parsed code */
     LEGACY_PIN,      /* pin only (releases up to 0.5.0) */
     LEGACY_PIN_PWD,  /* pin and AES password (releases up to 0.5.0) */
     PIN_NPACKETS,    /* pin and packet count */
@@ -77,8 +79,8 @@ struct Info {
     uint32_t npackets {1};
     /** AES password, if the code carries one. */
     std::string pwd {};
-    /** Layout of the code. */
-    Format format {Format::LEGACY_PIN};
+    /** Layout of the code; INVALID unless filled by the parser. */
+    Format format {Format::INVALID};
 };
 
 }
