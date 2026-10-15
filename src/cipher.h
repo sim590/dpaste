@@ -73,6 +73,20 @@ public:
      * @return A cipher
      */
     static std::shared_ptr<Cipher> get(Scheme scheme, std::shared_ptr<Parameters>&& init_params={});
+
+    /**
+     * Get a cipher for a legacy packet, i.e. a packet written by releases up
+     * to 0.5.0, which does not store a data scheme.
+     *
+     * A password in the code selects AES. Otherwise the cipher text is checked
+     * for an OpenPGP encrypted message. Anything else is plain data.
+     *
+     * @param cipher_text  The cipher text to guess the cipher from.
+     * @param pwd          The password carried by the code, if any.
+     *
+     * @return A cipher, or nothing if the data is not encrypted.
+     */
+    static std::shared_ptr<Cipher> getLegacy(const std::vector<uint8_t>& cipher_text, const std::string& pwd);
 };
 
 struct GPGParameters {

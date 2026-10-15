@@ -211,6 +211,11 @@ GpgME::Key GPG::getKey(const std::string& key_id) const {
     return key;
 }
 
+bool GPG::isGPGencrypted(const std::vector<uint8_t>& data) {
+    GpgME::Data d {reinterpret_cast<const char*>(data.data()), data.size()};
+    return d.type() == GpgME::Data::Type::PGPEncrypted;
+}
+
 } /* crypto */
 } /* dpaste */
 

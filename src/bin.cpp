@@ -31,6 +31,7 @@
 
 #include "bin.h"
 
+#include "aescrypto.h"
 #include "cipher.h"
 #include "code.h"
 #include "conf.h"
@@ -110,12 +111,34 @@ Bin::parse_data(std::vector<uint8_t>&& value,
     try {
         Packet p;
         p.deserialize(value);
-        std::vector<uint8_t> data;
 
-        auto cipher = crypto::Cipher::get(p.data_scheme);
-        if (cipher and not no_decrypt) {
+        std::shared_ptr<crypto::Cipher> cipher;
+        if (p.data_scheme) {
+            /* Packets written by protocol version 1 and later store the data
+             * scheme, so the cipher is selected without guessing. */
+            switch (*p.data_scheme) {
+                case crypto::Cipher::Scheme::NONE:
+                    break;
+                case crypto::Cipher::Scheme::AES:
+                case crypto::Cipher::Scheme::GPG:
+                    if (not no_decrypt)
+                        cipher = crypto::Cipher::get(*p.data_scheme);
+                    break;
+                default:
+                    DPASTE_MSG("Unknown data scheme (%u). Discarding the value.",
+                               static_cast<unsigned>(*p.data_scheme));
+                    return {};
+            }
+        } else if (not no_decrypt) {
+            /* Packets written by releases up to 0.5.0 do not carry a scheme.
+             * Reproduce the detection used by those releases. */
+            cipher = crypto::Cipher::getLegacy(p.data, pwd);
+        }
+
+        std::vector<uint8_t> data;
+        if (cipher) {
             std::shared_ptr<crypto::Parameters> params;
-            if (p.data_scheme == crypto::Cipher::Scheme::AES) {
+            if (std::dynamic_pointer_cast<crypto::AES>(cipher)) {
                 params = std::make_shared<crypto::Parameters>();
                 params->emplace<crypto::AESParameters>(pwd);
             }
@@ -246,7 +269,8 @@ Bin::prepare_data(std::stringstream&& input_stream,
     {
         rsiz += data.size();
 
-        Packet p { .data_scheme = scheme };
+        Packet p;
+        p.data_scheme = scheme;
         if (cipher) {
             auto cipher_text = cipher->processPlainText(data, std::move(sparams));
             if (cipher_text.empty()) {
@@ -312,7 +336,8 @@ std::vector<uint8_t> Bin::Packet::serialize() const {
 
     pk.pack_map(4);
     pk.pack("v");         pk.pack(PROTO_VERSION);
-    pk.pack("scheme");    pk.pack(static_cast<std::underlying_type_t<crypto::Cipher::Scheme>>(data_scheme));
+    pk.pack("scheme");    pk.pack(static_cast<std::underlying_type_t<crypto::Cipher::Scheme>>(
+                                  data_scheme.value_or(crypto::Cipher::Scheme::NONE)));
     pk.pack("data");      pk.pack(data);
     pk.pack("signature"); pk.pack(signature);
 
@@ -323,12 +348,13 @@ void Bin::Packet::deserialize(const std::vector<uint8_t>& pbuffer) {
     msgpack::unpacked unpacked = msgpack::unpack(reinterpret_cast<const char*>(pbuffer.data()), pbuffer.size());
     auto msgpack_object = unpacked.get();
 
-    data.clear();
+    data_scheme.reset();
     if (auto d = findMapValue(msgpack_object, "scheme")) {
         std::underlying_type_t<crypto::Cipher::Scheme> ds {};
         d->convert(ds);
         data_scheme = static_cast<crypto::Cipher::Scheme>(ds);
     }
+    data.clear();
     if (auto d = findMapValue(msgpack_object, "data"))
         d->convert(data);
     signature.clear();

@@ -51,6 +51,14 @@ std::shared_ptr<Cipher> Cipher::get(Scheme scheme, std::shared_ptr<Parameters>&&
     return {};
 }
 
+std::shared_ptr<Cipher> Cipher::getLegacy(const std::vector<uint8_t>& cipher_text, const std::string& pwd) {
+    if (not pwd.empty())
+        return std::make_shared<AES>();
+    else if (GPG::isGPGencrypted(cipher_text))
+        return std::make_shared<GPG>();
+    return {};
+}
+
 } /* crypto */
 } /* dpaste */
 

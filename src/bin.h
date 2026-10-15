@@ -98,7 +98,9 @@ private:
          */
         static const constexpr size_t EXTRA_SERIALIZATION_BYTES {12 * 1024};
 
-        crypto::Cipher::Scheme data_scheme {crypto::Cipher::Scheme::NONE};
+        /* Data scheme as stored in packets written by protocol version 1 and
+         * later. Absent in packets written by releases up to 0.5.0. */
+        std::optional<crypto::Cipher::Scheme> data_scheme {};
         std::vector<uint8_t> data {};
         std::vector<uint8_t> signature {};
 
@@ -140,7 +142,11 @@ private:
     prepare_data(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params);
 
     /**
-     * Parses a DHT values recovered from the DHT get operation.
+     * Parses a DHT value recovered from the DHT get operation.
+     *
+     * The data scheme stored in the packet selects the cipher. Packets without
+     * a scheme (written by releases up to 0.5.0) fall back to the detection
+     * used by those releases.
      *
      * @param value       The value to parse.
      * @param pwd         The password used to decrypt the AES encrypted data

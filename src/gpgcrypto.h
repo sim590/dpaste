@@ -68,6 +68,17 @@ public:
 
     void comment_on_signature(const GpgME::Signature& sig);
 
+    /**
+     * Tells whether the given data looks like an OpenPGP encrypted message.
+     * This is used to detect the cipher of legacy packets, which do not carry
+     * a data scheme.
+     *
+     * @param data  The data to check.
+     *
+     * @return true if the data looks like an OpenPGP encrypted message.
+     */
+    static bool isGPGencrypted(const std::vector<uint8_t>& data);
+
 private:
     GpgME::Key getKey(const std::string& key_id) const;
 
