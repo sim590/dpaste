@@ -62,7 +62,7 @@ Bin::Bin() {
 std::string Bin::code_from_dpaste_uri(const std::string& uri) {
     static const std::string DUP {DPASTE_URI_PREFIX};
     const auto p = uri.find(DUP);
-    return uri.substr(p != std::string::npos ? p+DUP.length() : 0, code::PIN_WITH_PASS_LEN);
+    return uri.substr(p != std::string::npos ? p+DUP.length() : 0, code::MAX_LEN);
 }
 
 std::optional<code::Info>
@@ -78,19 +78,22 @@ Bin::parse_code_info(const std::string& code) {
 
     /* Releases up to 0.5.0 do not carry a packet count field. */
     if (code.size() <= code::DPASTE_PIN_LEN)
-        return code::Info { code, pin, 1, "", code::Format::LEGACY_PIN };
+        return code::Info { code, pin, 1, 1, "", code::Format::LEGACY_PIN };
 
     const auto lcode = code.substr(0, code::DPASTE_PIN_LEN);
     if (code.size() == code::LEGACY_PIN_WITH_PASS_LEN)
         return code::Info { lcode
                           , pin
                           , 1
+                          , 1
                           , code.substr(code::DPASTE_PIN_LEN, code::PASSWORD_LEN)
                           , code::Format::LEGACY_PIN_PWD
                           };
 
     if (code.size() != code::DPASTE_PIN_LEN + code::DPASTE_NPACKETS_LEN
-            and code.size() != code::PIN_WITH_PASS_LEN)
+            and code.size() != code::PIN_WITH_PASS_LEN
+            and code.size() != code::PIN_NPACKETS_VPK_LEN
+            and code.size() != code::PIN_NPACKETS_VPK_PWD_LEN)
         return std::nullopt;
 
     uint32_t npackets {};
@@ -101,12 +104,31 @@ Bin::parse_code_info(const std::string& code) {
     if (parsed_npackets.ec != std::errc{} or parsed_npackets.ptr != last or npackets == 0)
         return std::nullopt;
 
-    const bool with_pwd = code.size() == code::PIN_WITH_PASS_LEN;
+    const bool with_vpk = code.size() == code::PIN_NPACKETS_VPK_LEN
+                       or code.size() == code::PIN_NPACKETS_VPK_PWD_LEN;
+    const bool with_pwd = code.size() == code::PIN_WITH_PASS_LEN
+                       or code.size() == code::PIN_NPACKETS_VPK_PWD_LEN;
+
+    uint8_t vpk {1};
+    if (with_vpk) {
+        uint32_t parsed_vpk {};
+        const auto* vpk_first = code.data() + code::DPASTE_PIN_LEN + code::DPASTE_NPACKETS_LEN;
+        const auto* vpk_last  = vpk_first + code::DPASTE_VPK_LEN;
+        const auto parsed     = std::from_chars(vpk_first, vpk_last, parsed_vpk, 16);
+        if (parsed.ec != std::errc{} or parsed.ptr != vpk_last or parsed_vpk == 0)
+            return std::nullopt;
+        vpk = static_cast<uint8_t>(parsed_vpk);
+    }
+
+    const auto pwd_offset = code::DPASTE_PIN_LEN + code::DPASTE_NPACKETS_LEN
+                          + (with_vpk ? code::DPASTE_VPK_LEN : 0);
+    const auto format = with_vpk
+                      ? (with_pwd ? code::Format::PIN_NPACKETS_VPK_PWD : code::Format::PIN_NPACKETS_VPK)
+                      : (with_pwd ? code::Format::PIN_NPACKETS_PWD : code::Format::PIN_NPACKETS);
     return code::Info {
-        lcode, pin, npackets,
-        with_pwd ? code.substr(code::DPASTE_PIN_LEN + code::DPASTE_NPACKETS_LEN, code::PASSWORD_LEN)
-                 : std::string {},
-        with_pwd ? code::Format::PIN_NPACKETS_PWD : code::Format::PIN_NPACKETS };
+        lcode, pin, npackets, vpk,
+        with_pwd ? code.substr(pwd_offset, code::PASSWORD_LEN) : std::string {},
+        format };
 }
 
 std::vector<uint8_t>
@@ -290,6 +312,7 @@ Bin::prepare_data(std::stringstream&& input_stream,
 
         Packet p;
         p.data_scheme = scheme;
+        p.index       = static_cast<uint16_t>(packets.size());
         if (cipher) {
             auto cipher_text = cipher->processPlainText(data, std::move(sparams));
             if (cipher_text.empty()) {
@@ -335,7 +358,11 @@ Bin::paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>
             return {};
     }
 
-    return DPASTE_URI_PREFIX+code_from_pin(pin)+hexStrFromInt(shift, code::DPASTE_NPACKETS_LEN)+pwd;
+    return DPASTE_URI_PREFIX
+         + code_from_pin(pin)
+         + hexStrFromInt(shift, code::DPASTE_NPACKETS_LEN)
+         + hexStrFromInt(Bin::VALUES_PER_KEY, code::DPASTE_VPK_LEN)
+         + pwd;
 }
 
 msgpack::object*
@@ -350,17 +377,19 @@ findMapValue(msgpack::object& map, const std::string& key) {
 }
 
 std::vector<uint8_t> Bin::Packet::serialize() const {
-    /* Packets are always created with a data scheme (see prepare_data); a
-     * missing one is a bug. Fail hard rather than storing Scheme::NONE, which
-     * would make retrieval mistake encrypted data for plain data. */
-    assert(data_scheme.has_value());
+    /* Packets are always created with a data scheme and an index (see
+     * prepare_data); a missing one is a bug. Fail hard rather than storing
+     * Scheme::NONE, which would make retrieval mistake encrypted data for
+     * plain data. */
+    assert(data_scheme.has_value() and index.has_value());
 
     msgpack::sbuffer buffer;
     msgpack::packer<msgpack::sbuffer> pk(&buffer);
 
-    pk.pack_map(4);
+    pk.pack_map(5);
     pk.pack("v");         pk.pack(PROTO_VERSION);
     pk.pack("scheme");    pk.pack(static_cast<std::underlying_type_t<crypto::Cipher::Scheme>>(data_scheme.value()));
+    pk.pack("index");     pk.pack(index.value());
     pk.pack("data");      pk.pack(data);
     pk.pack("signature"); pk.pack(signature);
 
@@ -376,6 +405,12 @@ void Bin::Packet::deserialize(const std::vector<uint8_t>& pbuffer) {
         std::underlying_type_t<crypto::Cipher::Scheme> ds {};
         d->convert(ds);
         data_scheme = static_cast<crypto::Cipher::Scheme>(ds);
+    }
+    index.reset();
+    if (auto i = findMapValue(msgpack_object, "index")) {
+        uint16_t idx {};
+        i->convert(idx);
+        index = idx;
     }
     data.clear();
     if (auto d = findMapValue(msgpack_object, "data"))

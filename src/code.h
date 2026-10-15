@@ -36,6 +36,12 @@ static const constexpr unsigned int DPASTE_NPACKETS_LEN {2};
 static const constexpr unsigned int DPASTE_PIN_LEN {8};
 
 /**
+ * Number of bytes in a dpaste code accounting for the number of values stored
+ * under the same key.
+ */
+static const constexpr unsigned int DPASTE_VPK_LEN {1};
+
+/**
  * Number of bytes used to encode the AES password.
  */
 static const constexpr size_t PASSWORD_LEN {8};
@@ -46,6 +52,18 @@ static const constexpr size_t PASSWORD_LEN {8};
  * encode the password. Otherwise, PIN should be 40 bits.
  */
 static const constexpr size_t PIN_WITH_PASS_LEN {DPASTE_PIN_LEN + DPASTE_NPACKETS_LEN + PASSWORD_LEN};
+
+/**
+ * Length of a code carrying the number of values per key, with and without an
+ * AES password.
+ */
+static const constexpr size_t PIN_NPACKETS_VPK_LEN {DPASTE_PIN_LEN + DPASTE_NPACKETS_LEN + DPASTE_VPK_LEN};
+static const constexpr size_t PIN_NPACKETS_VPK_PWD_LEN {PIN_NPACKETS_VPK_LEN + PASSWORD_LEN};
+
+/**
+ * Length of the longest supported code. Used to trim trailing garbage.
+ */
+static const constexpr size_t MAX_LEN {PIN_NPACKETS_VPK_PWD_LEN};
 
 /**
  * Length of a code carrying an AES password in releases up to 0.5.0. Those
@@ -63,7 +81,9 @@ enum class Format : uint8_t {
     LEGACY_PIN,      /* pin only (releases up to 0.5.0) */
     LEGACY_PIN_PWD,  /* pin and AES password (releases up to 0.5.0) */
     PIN_NPACKETS,    /* pin and packet count */
-    PIN_NPACKETS_PWD /* pin, packet count and AES password */
+    PIN_NPACKETS_PWD,/* pin, packet count and AES password */
+    PIN_NPACKETS_VPK,    /* pin, packet count and values per key */
+    PIN_NPACKETS_VPK_PWD /* pin, packet count, values per key and AES password */
 };
 
 /**
@@ -77,6 +97,8 @@ struct Info {
     uint32_t pin {0};
     /** Number of packets the pasted file is split into. */
     uint32_t npackets {1};
+    /** Number of values stored under the same DHT key. */
+    uint8_t vpk {1};
     /** AES password, if the code carries one. */
     std::string pwd {};
     /** Layout of the code; INVALID unless filled by the parser. */

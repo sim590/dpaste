@@ -54,6 +54,13 @@ public:
      */
     static const constexpr size_t DPASTE_MAX_SIZE {2 * 1024 * 1024};
 
+    /**
+     * Number of packets stored under the same DHT key. Packets are spread on
+     * ceil(npackets / VALUES_PER_KEY) keys so that retrieving a paste takes a
+     * limited number of DHT requests.
+     */
+    static const constexpr uint8_t VALUES_PER_KEY {1};
+
     Bin();
     virtual ~Bin () {}
 
@@ -101,6 +108,8 @@ private:
         /* Data scheme as stored in packets written by protocol version 1 and
          * later. Absent in packets written by releases up to 0.5.0. */
         std::optional<crypto::Cipher::Scheme> data_scheme {};
+        /* Position of this packet in the pasted data. */
+        std::optional<uint16_t> index {};
         std::vector<uint8_t> data {};
         std::vector<uint8_t> signature {};
 
@@ -186,10 +195,12 @@ private:
      * Supported formats all start with the location pin, optionally followed
      * by a packet count and an AES password:
      *
-     *     PIN                         (releases up to 0.5.0)
-     *     PIN + PASSWORD              (releases up to 0.5.0, AES)
-     *     PIN + NPACKETS              (with packet splitting)
-     *     PIN + NPACKETS + PASSWORD   (with packet splitting, AES)
+     *     PIN                                (releases up to 0.5.0)
+     *     PIN + PASSWORD                     (releases up to 0.5.0, AES)
+     *     PIN + NPACKETS                     (with packet splitting)
+     *     PIN + NPACKETS + PASSWORD          (with packet splitting, AES)
+     *     PIN + NPACKETS + VPK               (with values per key)
+     *     PIN + NPACKETS + VPK + PASSWORD    (with values per key, AES)
      *
      * The code length is unambiguous for these formats, so parsing is
      * dispatched on it.
