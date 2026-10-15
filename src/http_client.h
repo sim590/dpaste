@@ -43,7 +43,7 @@ public:
      *
      * @return A vector of the values recovered from the DHT by the REST server.
      */
-    std::string get(const std::string& code) const;
+    std::vector<std::string> get(const std::string& code) const;
 
     /**
      * Send a PUT request to the REST server.

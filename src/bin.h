@@ -59,7 +59,7 @@ public:
      * ceil(npackets / VALUES_PER_KEY) keys so that retrieving a paste takes a
      * limited number of DHT requests.
      */
-    static const constexpr uint8_t VALUES_PER_KEY {1};
+    static const constexpr uint8_t VALUES_PER_KEY {8};
 
     Bin();
     virtual ~Bin () {}
@@ -117,6 +117,14 @@ private:
         void deserialize(const std::vector<uint8_t>& pbuffer);
     };
 
+    /* A packet successfully parsed from a DHT value. */
+    struct ParsedPacket {
+        /* Position of the packet, if it was stored in the value. Absent in
+         * packets written before the index field was introduced. */
+        std::optional<uint16_t> index {};
+        std::vector<uint8_t> data {};
+    };
+
     /*!
      * @class   Random
      * @brief   Random number generator state encapsulator.
@@ -164,11 +172,11 @@ private:
      * @param no_decrypt  A bool indicating if the data should be decrypted
      *                    before being returned.
      *
-     * @return The value (or part of the value) recovered from the DHT.
+     * @return The parsed packet, or nothing if the value is unusable.
      */
-    std::vector<uint8_t> parse_data(std::vector<uint8_t>&& value,
-                                    std::string pwd,
-                                    bool no_decrypt) const;
+    std::optional<ParsedPacket> parse_data(std::vector<uint8_t>&& value,
+                                           std::string pwd,
+                                           bool no_decrypt) const;
 
     /**
      * Get data from input stream.

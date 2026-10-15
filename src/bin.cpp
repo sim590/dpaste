@@ -131,7 +131,7 @@ Bin::parse_code_info(const std::string& code) {
         format };
 }
 
-std::vector<uint8_t>
+std::optional<Bin::ParsedPacket>
 Bin::parse_data(std::vector<uint8_t>&& value,
                 std::string pwd,
                 bool no_decrypt) const
@@ -159,7 +159,7 @@ Bin::parse_data(std::vector<uint8_t>&& value,
                     DPASTE_MSG( "Unknown data scheme (%u). Discarding the value."
                               , static_cast<unsigned>(*p.data_scheme)
                               );
-                    return {};
+                    return std::nullopt;
             }
         } else if (not no_decrypt) {
             /* Packets written by releases up to 0.5.0 do not carry a scheme.
@@ -189,26 +189,26 @@ Bin::parse_data(std::vector<uint8_t>&& value,
                 gc->comment_on_signature(res.signature(0));
         }
 
-        return data;
+        return ParsedPacket { p.index, std::move(data) };
     } catch (const GpgME::Exception& e) {
         DPASTE_MSG("%s", e.what());
         if (guessed_gpg) {
             /* The OpenPGP detection may have misfired, or the value cannot
              * be decrypted here. Return it as is rather than losing it. */
             DPASTE_MSG("The value was detected as OpenPGP encrypted, but decryption failed. Returning the raw value.");
-            return p.data;
+            return ParsedPacket { p.index, std::move(p.data) };
         }
-        return {};
+        return std::nullopt;
     } catch (const dht::crypto::DecryptError& e) {
         DPASTE_MSG("%s", e.what());
-        return {};
+        return std::nullopt;
     } catch (msgpack::insufficient_bytes& e) {
         DPASTE_MSG("%s", e.what());
         DPASTE_MSG("Insufficient bytes to unpack the data. The data may be corrupted or missing.");
-        return {};
+        return std::nullopt;
     } catch (msgpack::type_error& e) { } /* backward compatibility with <=0.3.3 */
 
-    return {};
+    return std::nullopt;
 }
 
 std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool no_proxy) {
@@ -220,36 +220,66 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool 
     }
     const auto& lcode    = code_info->lcode;
     const auto& npackets = code_info->npackets;
+    const auto& vpk      = code_info->vpk;
     const auto& pwd      = code_info->pwd;
+    /* Codes from before the values-per-key field store one packet per key and
+     * do not carry the packet index. */
+    const bool one_per_key = code_info->format != code::Format::PIN_NPACKETS_VPK
+                         and code_info->format != code::Format::PIN_NPACKETS_VPK_PWD;
 
     auto available = http_client_->isAvailable();
     auto get_method = [this,&available,&no_proxy](const auto& c) {
+        std::vector<std::vector<uint8_t>> values;
         /* if available, try http server */
         if (available and not no_proxy) {
-            auto data = http_client_->get(c);
-            std::vector<uint8_t> blob;
-            std::move(data.begin(), data.end(), std::back_inserter(blob));
-            return blob;
+            for (auto& data : http_client_->get(c)) {
+                std::vector<uint8_t> blob;
+                std::move(data.begin(), data.end(), std::back_inserter(blob));
+                values.emplace_back(std::move(blob));
+            }
         /* if fail, then perform request from local node */
-        } else {
-            auto values = node.get(c);
-            if (not values.empty())
-                return values.front();
-        }
-        return std::vector<uint8_t> {};
+        } else
+            values = node.get(c);
+        return values;
     };
 
-    std::vector<uint8_t> whole_data;
-    for (uint8_t s = 0; s < npackets; ++s) {
-        /* The first packet is looked up with the raw location code so that
+    const uint32_t nkeys = (npackets + vpk - 1) / vpk;
+    std::vector<std::vector<uint8_t>> chunks(npackets);
+    std::vector<bool> found(npackets, false);
+
+    for (uint32_t k = 0; k < nkeys; ++k) {
+        /* The first key is looked up with the raw location code so that
          * unpadded pins from releases before 0.4.0 keep their original key. */
-        const std::string target = s == 0 ? lcode : code_from_pin(code_info->pin + s);
-        auto value               = get_method(target);
-        auto data                = parse_data(std::move(value), pwd, no_decrypt);
-        if (data.empty())
-            return {false, {}};
-        std::move(data.begin(), data.end(), std::back_inserter(whole_data));
+        const std::string target = k == 0 ? lcode : code_from_pin(code_info->pin + k);
+        for (auto& value : get_method(target)) {
+            auto parsed = parse_data(std::move(value), pwd, no_decrypt);
+            if (not parsed or parsed->data.empty())
+                return {false, {}};
+
+            uint32_t idx {};
+            if (one_per_key)
+                idx = k;
+            else if (parsed->index)
+                idx = *parsed->index;
+            else
+                return {false, {}};
+
+            /* Every packet must be present exactly once, under the key it was
+             * published under. */
+            if (idx >= npackets or idx / vpk != k or found[idx])
+                return {false, {}};
+
+            chunks[idx] = std::move(parsed->data);
+            found[idx]  = true;
+        }
     }
+
+    if (std::find(found.begin(), found.end(), false) != found.end())
+        return {false, {}};
+
+    std::vector<uint8_t> whole_data;
+    for (auto& chunk : chunks)
+        std::move(chunk.begin(), chunk.end(), std::back_inserter(whole_data));
 
     std::string ret;
     std::move(whole_data.begin(), whole_data.end(), std::back_inserter(ret));
@@ -349,18 +379,20 @@ Bin::paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>
     auto& pwd     = pp.second;
 
     DPASTE_MSG("Pasting data...");
-    size_t shift = 0;
-    for (const auto& p : packets) {
-        auto code       = code_from_pin(pin + shift++);
-        auto bin_packet = p.serialize();
-        bool success    = paste_method(code, std::move(bin_packet));
+    for (size_t i = 0; i < packets.size(); ++i) {
+        const auto& p = packets[i];
+        /* Packets are spread contiguously: VALUES_PER_KEY packets per key. */
+        const uint32_t key_index = static_cast<uint32_t>(i / Bin::VALUES_PER_KEY);
+        auto code                = code_from_pin(pin + key_index);
+        auto bin_packet          = p.serialize();
+        bool success             = paste_method(code, std::move(bin_packet));
         if (not success)
             return {};
     }
 
     return DPASTE_URI_PREFIX
          + code_from_pin(pin)
-         + hexStrFromInt(shift, code::DPASTE_NPACKETS_LEN)
+         + hexStrFromInt(packets.size(), code::DPASTE_NPACKETS_LEN)
          + hexStrFromInt(Bin::VALUES_PER_KEY, code::DPASTE_VPK_LEN)
          + pwd;
 }

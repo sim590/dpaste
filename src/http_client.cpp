@@ -83,7 +83,7 @@ bool HttpClient::isAvailable() const {
     }
 }
 
-std::string HttpClient::get(const std::string& code) const {
+std::vector<std::string> HttpClient::get(const std::string& code) const {
     try {
         curlpp::Cleanup mycleanup;
         curlpp::Easy req;
@@ -93,6 +93,7 @@ std::string HttpClient::get(const std::string& code) const {
                 dht::InfoHash::get(code).toString());
         req.setOpt(curlpp::Options::WriteStream(&response));
 
+        std::vector<std::string> values;
         try {
             req.perform();
             /* server gives code 200 when everything is fine. */
@@ -111,7 +112,7 @@ std::string HttpClient::get(const std::string& code) const {
                             std::ostringstream decoded;
                             base64::decoder decoder;
                             decoder.decode(encoded, decoded);
-                            return decoded.str();
+                            values.emplace_back(decoded.str());
                         }
                     } catch (const std::exception&) {
                         /* Ignore malformed or incompatible Value objects. */
@@ -122,7 +123,7 @@ std::string HttpClient::get(const std::string& code) const {
             DPASTE_MSG("%s", e.what());
         }
 
-        return {};
+        return values;
     } catch (curlpp::LogicError & e) {
         DPASTE_MSG("%s", e.what());
         return {};
