@@ -31,18 +31,6 @@ namespace crypto {
 
 class AES : public Cipher {
 public:
-    /**
-     * Length of the PIN if it contains the password for encrypted pasted data.
-     * It consists of 16 hexadecimal characters: 16*4 = 64 bits. Last 32 bits
-     * encode the password. Otherwise, PIN should be 32 bits.
-     */
-    static const constexpr size_t PIN_WITH_PASS_LEN {16};
-    /**
-     * Number of bytes offsetting the password in the binary representation of
-     * the hexadecimal password.
-     */
-    static const constexpr size_t CODE_PASS_OFFSET {4};
-
     AES() {}
     virtual ~AES () {}
 

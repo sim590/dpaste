@@ -77,37 +77,37 @@ public:
     }
 };
 
-TEST_CASE("Node starts even when the cache path is unusable", "[Node][cache]") {
+CATCH_TEST_CASE("Node starts even when the cache path is unusable", "[Node][cache]") {
     PirateNodeTester pt;
     CacheFileGuard cache;
 
     dpaste::Node node {};
     node.run();
-    REQUIRE(pt.is_running(node));
+    CATCH_REQUIRE(pt.is_running(node));
 
     node.stop();
-    REQUIRE_FALSE(pt.is_running(node));
+    CATCH_REQUIRE_FALSE(pt.is_running(node));
 }
 
-TEST_CASE("Node get/paste on DHT", "[Node][get][paste]") {
+CATCH_TEST_CASE("Node get/paste on DHT", "[Node][get][paste]") {
     PirateNodeTester pt;
 
-    const std::string PIN = random_pin();
+    const std::string PIN = random_code();
     std::vector<uint8_t> data = {0, 1, 2, 3, 4};
     dpaste::Node node {};
     node.run();
 
-    SECTION ( "pasting data {0,1,2,3,4}" ) {
-        REQUIRE ( node.paste(PIN, std::vector<uint8_t> {data}) );
+    CATCH_SECTION ( "pasting data {0,1,2,3,4}" ) {
+        CATCH_REQUIRE ( node.paste(PIN, std::vector<uint8_t> {data}) );
 
-        SECTION ( "getting pasted blob back from the DHT" ) {
+        CATCH_SECTION ( "getting pasted blob back from the DHT" ) {
             auto rd = node.get(PIN);
-            REQUIRE ( data == rd.front() );
+            CATCH_REQUIRE ( data == rd.front() );
         }
     }
 
     node.stop();
-    REQUIRE ( not pt.is_running(node) );
+    CATCH_REQUIRE ( not pt.is_running(node) );
 }
 
 } /* tests */
