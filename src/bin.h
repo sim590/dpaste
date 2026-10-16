@@ -61,6 +61,13 @@ public:
      */
     static const constexpr uint8_t VALUES_PER_KEY {16};
 
+    /**
+     * Maximal size of a packet when encrypting with GPG. The ASCII armor
+     * expands the ciphertext by about 1.355x (base64 plus armor headers), so
+     * a full-size packet would exceed OpenDHT's maximum value size.
+     */
+    static const constexpr size_t GPG_SIZE_PER_PACKET {44 * 1024};
+
     Bin();
     virtual ~Bin () {}
 

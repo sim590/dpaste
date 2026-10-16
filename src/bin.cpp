@@ -26,6 +26,7 @@
 #include <cassert>
 #include <charconv>
 #include <cmath>
+#include <cstring>
 #include <unistd.h>
 #include <type_traits>
 
@@ -332,7 +333,9 @@ Bin::prepare_data(std::stringstream&& input_stream,
     auto cipher = crypto::Cipher::get(scheme, std::move(init_params));
 
     uint32_t rsiz = 0;
-    const size_t SIZE_PER_PACKET = dht::MAX_VALUE_SIZE - Packet::EXTRA_SERIALIZATION_BYTES;
+    const size_t SIZE_PER_PACKET = scheme == crypto::Cipher::Scheme::GPG
+                                 ? Bin::GPG_SIZE_PER_PACKET
+                                 : dht::MAX_VALUE_SIZE - Packet::EXTRA_SERIALIZATION_BYTES;
     std::vector<Packet> packets;
     packets.reserve(std::ceil(((double)Bin::DPASTE_MAX_SIZE) / SIZE_PER_PACKET));
     std::vector<uint8_t> data;
@@ -386,6 +389,12 @@ Bin::paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>
         const uint32_t key_index = static_cast<uint32_t>(i / Bin::VALUES_PER_KEY);
         auto code                = code_from_pin(pin + key_index);
         auto bin_packet          = p.serialize();
+        /* OpenDHT drops values bigger than MAX_VALUE_SIZE, which would make
+         * the whole paste fail silently at the proxy. */
+        if (bin_packet.size() + std::strlen(Node::DPASTE_USER_TYPE) > dht::MAX_VALUE_SIZE) {
+            DPASTE_MSG("Packet is too large for the DHT (%zu bytes). Not publishing.", bin_packet.size());
+            return {};
+        }
         bool success             = paste_method(code, std::move(bin_packet));
         if (not success)
             return {};
