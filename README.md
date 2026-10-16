@@ -154,8 +154,8 @@ not likely to be "down".
 
 ## Roadmap
 
-- Add support for values with size greater than 64KiB (splitting values across
-  multiple locations, see #17);
+- ~~Add support for values with size greater than 64KiB (splitting values across
+  multiple locations, see #17)~~;
 - Support for multi-lingual interface (--help, info/debug messages, see #18);
 - Support for longer paste life time (OpenDHT's default is 10 minutes, see #19);
 - ~~Switch from the currently used [small python REST API server script][pyserver] to OpenDHT's proxy (see #20)~~;
