@@ -340,7 +340,8 @@ Bin::prepare_data(std::stringstream&& input_stream,
     packets.reserve(std::ceil(((double)Bin::DPASTE_MAX_SIZE) / SIZE_PER_PACKET));
     std::vector<uint8_t> data;
     while (rsiz < Bin::DPASTE_MAX_SIZE
-           and (data = data_from_stream(input_stream, SIZE_PER_PACKET)).size() > 0)
+           and (data = data_from_stream(input_stream,
+                                        std::min(SIZE_PER_PACKET, Bin::DPASTE_MAX_SIZE - rsiz))).size() > 0)
     {
         rsiz += data.size();
 

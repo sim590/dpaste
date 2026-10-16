@@ -55,6 +55,11 @@ public:
     std::vector<uint8_t> data_from_stream(std::stringstream& input_stream, size_t count) const {
         return Bin::data_from_stream(input_stream, count);
     }
+
+    static std::pair<std::vector<Bin::Packet>, std::string>
+    prepare_data(Bin& bin, std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params) {
+        return bin.prepare_data(std::move(input_stream), std::move(params));
+    }
 };
 
 void test_paste(Bin& bin, const std::vector<uint8_t>& data, bool no_proxy) {
@@ -113,6 +118,15 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
     CATCH_SECTION ( "pasting empty input" ) {
         std::stringstream empty;
         CATCH_REQUIRE ( bin.paste(std::move(empty), {}, true).empty() );
+    }
+
+    CATCH_SECTION ( "preparing data over the maximum paste size" ) {
+        std::stringstream ss(std::string(Bin::DPASTE_MAX_SIZE + 4096, 'x'));
+        auto pp = PirateBinTester::prepare_data(bin, std::move(ss), {});
+        size_t total = 0;
+        for (const auto& p : pp.first)
+            total += p.data.size();
+        CATCH_REQUIRE ( total == Bin::DPASTE_MAX_SIZE );
     }
 }
 
