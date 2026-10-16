@@ -351,6 +351,10 @@ Bin::prepare_data(std::stringstream&& input_stream,
         if (cipher) {
             auto cipher_text = cipher->processPlainText(data, std::move(sparams));
             if (cipher_text.empty()) {
+                /* The data was not encrypted (sign-only paste): mark it as
+                 * plaintext so that retrieval verifies the signature instead
+                 * of trying to decrypt the data. */
+                p.data_scheme = crypto::Cipher::Scheme::NONE;
                 p.data.insert(p.data.end(), data.begin(), data.end());
                 if (to_sign) {
                     DPASTE_MSG("Signing data...");
