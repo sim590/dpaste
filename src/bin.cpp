@@ -180,6 +180,14 @@ Bin::parse_data(std::vector<uint8_t>&& value,
                 params->emplace<crypto::AESParameters>(pwd);
             }
             data = cipher->processCipherText(p.data, std::move(params));
+            /* GPG::encrypt appends a NUL delimiter to the plaintext of every
+             * packet; decryption returns it unchanged. Strip exactly that
+             * delimiter so that reassembled pastes do not contain stray NUL
+             * bytes. Legacy values (guessed OpenPGP) and --no-decrypt keep
+             * their current behavior. */
+            if (p.data_scheme and *p.data_scheme == crypto::Cipher::Scheme::GPG
+                and not data.empty() and data.back() == '\0')
+                data.pop_back();
         } else
             data = std::move(p.data);
 
