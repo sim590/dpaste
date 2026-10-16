@@ -44,7 +44,7 @@ public:
         return Bin::hexStrFromInt(i, len);
     }
 
-    static std::tuple<std::string, uint32_t, std::string> parse_code_info(const std::string& uri) {
+    static std::optional<code::Info> parse_code_info(const std::string& uri) {
         return Bin::parse_code_info(uri);
     }
 
@@ -57,27 +57,27 @@ public:
     }
 };
 
-void test_paste(Bin& bin, const std::vector<uint8_t>& data) {
+void test_paste(Bin& bin, const std::vector<uint8_t>& data, bool no_proxy) {
     using pbt = PirateBinTester;
-    auto code = bin.paste(std::vector<uint8_t> {data}, {}, true);
-    CATCH_REQUIRE ( code.size() == pbt::dpaste_uri_prefix().size()+code::DPASTE_PIN_LEN+code::DPASTE_NPACKETS_LEN );
+    auto code = bin.paste(std::vector<uint8_t> {data}, {}, no_proxy);
+    CATCH_REQUIRE ( code.size() == pbt::dpaste_uri_prefix().size()+code::DPASTE_PIN_LEN+code::DPASTE_NPACKETS_LEN+code::DPASTE_VPK_LEN );
 
     CATCH_SECTION ( "getting pasted blob back from the DHT" ) {
-        auto rd = bin.get(std::move(code), true).second;
+        auto rd = bin.get(std::move(code), false, no_proxy).second;
         std::vector<uint8_t> rdv {rd.begin(), rd.end()};
         CATCH_REQUIRE ( data == rdv );
     }
 }
 
-void test_paste_encrypted(Bin& bin, const std::vector<uint8_t>& data) {
+void test_paste_encrypted(Bin& bin, const std::vector<uint8_t>& data, bool no_proxy) {
     using pbt = PirateBinTester;
     auto p = std::make_unique<dpaste::crypto::Parameters>();
     p->emplace<crypto::AESParameters>();
-    auto code = bin.paste(std::vector<uint8_t> {data}, std::move(p), true);
-    CATCH_REQUIRE ( code.size() == pbt::dpaste_uri_prefix().size()+code::DPASTE_PIN_LEN+code::DPASTE_NPACKETS_LEN+code::PASSWORD_LEN );
+    auto code = bin.paste(std::vector<uint8_t> {data}, std::move(p), no_proxy);
+    CATCH_REQUIRE ( code.size() == pbt::dpaste_uri_prefix().size()+code::DPASTE_PIN_LEN+code::DPASTE_NPACKETS_LEN+code::DPASTE_VPK_LEN+code::PASSWORD_LEN );
 
     CATCH_SECTION ( "getting pasted AES encrypted blob back from the DHT" ) {
-        auto rd = bin.get(std::move(code), true).second;
+        auto rd = bin.get(std::move(code), false, no_proxy).second;
         std::vector<uint8_t> rdv {rd.begin(), rd.end()};
         CATCH_REQUIRE ( data == rdv );
     }
@@ -91,10 +91,10 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
         test_paste(bin, data, true);
     }
     CATCH_SECTION ( "pasting AES encrypted {0,1,2,3,4}" ) {
-        test_paste_encrypted(bin, data);
+        test_paste_encrypted(bin, data, true);
     }
     CATCH_SECTION ( "pasting data (size over 64KB)" ) {
-        std::array<size_t, 4> sizes = {32 * 1024, 64 * 1024, 512 * 1024};
+        std::array<size_t, 3> sizes = {32 * 1024, 64 * 1024, 512 * 1024};
         for (const auto& s : sizes) {
             std::stringstream ss;
             ss << s;
@@ -104,7 +104,7 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
                     test_paste(bin, buffer, true);
                 }
                 CATCH_SECTION ( "AES encrypted data" ) {
-                    test_paste_encrypted(bin, buffer);
+                    test_paste_encrypted(bin, buffer, true);
                 }
             }
         }
@@ -113,44 +113,63 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
 
 CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_dpaste_uri][parse_code_info]") {
     using pbt = PirateBinTester;
-    const uint32_t NPACKETS     = (uint32_t)random_number() % 256;
+    const uint32_t NPACKETS     = (uint32_t)random_number() % 255 + 1;
     const std::string NPACKETSS = pbt::hexStrFromInt(NPACKETS, 2);
     const std::string LCODE     = random_code();
     const std::string CODE      = LCODE + NPACKETSS;
+    const std::string VPKSS     = "8";
+    const std::string CODE_VPK  = CODE + VPKSS;
     const std::string PWD       = random_code();
     std::string pin_upper {CODE.begin(), CODE.end()};
     std::transform(pin_upper.begin(), pin_upper.end(), pin_upper.begin(), ::toupper);
 
-    auto test_code_parsing = [&LCODE,&NPACKETS](const std::string& unparsed_code, const std::string& pwd) {
-        const auto code_tuple1 = pbt::parse_code_info(unparsed_code);
+    auto test_code_parsing = [&LCODE,&NPACKETS](const std::string& unparsed_code, uint8_t vpk, const std::string& pwd) {
+        const auto code_info = pbt::parse_code_info(unparsed_code);
+        CATCH_REQUIRE ( code_info.has_value() );
 
-        CATCH_REQUIRE ( std::get<0>(code_tuple1) == LCODE );
-        CATCH_REQUIRE ( std::get<1>(code_tuple1) == NPACKETS );
-        CATCH_REQUIRE ( std::get<2>(code_tuple1) == pwd );
+        CATCH_REQUIRE ( code_info->lcode    == LCODE    );
+        CATCH_REQUIRE ( code_info->npackets == NPACKETS );
+        CATCH_REQUIRE ( code_info->vpk      == vpk      );
+        CATCH_REQUIRE ( code_info->pwd      == pwd      );
     };
 
     CATCH_SECTION ( "good pins" ) {
         auto gc1 = "dpaste:"+CODE;
         auto gc2 = CODE;
         auto gc3 = "dpaste:"+CODE+PWD;
+        auto gc4 = "dpaste:"+CODE_VPK;
+        auto gc5 = "dpaste:"+CODE_VPK+PWD;
         CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc1) == CODE );
         CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc2) == CODE );
         CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc3) == CODE+PWD );
+        CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc4) == CODE_VPK );
+        CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc5) == CODE_VPK+PWD );
 
         CATCH_SECTION ( "good pin (upper case)" ) {
-            auto gc4 = "dpaste:"+pin_upper;
-            auto gc5 = pin_upper;
-            auto gc6 = "dpaste:"+pin_upper+PWD;
+            auto gc6 = "dpaste:"+pin_upper;
+            auto gc7 = pin_upper;
+            auto gc8 = "dpaste:"+pin_upper+PWD;
 
-            CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc4) == pin_upper );
-            CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc5) == pin_upper );
-            CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc6) == pin_upper+PWD );
+            CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc6) == pin_upper );
+            CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc7) == pin_upper );
+            CATCH_REQUIRE ( pbt::code_from_dpaste_uri(gc8) == pin_upper+PWD );
+        }
+        CATCH_SECTION ( "trailing garbage is trimmed" ) {
+            CATCH_REQUIRE ( pbt::code_from_dpaste_uri("dpaste:"+CODE_VPK+PWD+"JUNK") == CODE_VPK+PWD );
         }
         CATCH_SECTION ( "testing Bin::parse_code_info" ) {
-            test_code_parsing(CODE, "");
+            test_code_parsing(CODE, 1, "");
+            test_code_parsing(CODE+PWD, 1, PWD);
         }
-        CATCH_SECTION ( "testing Bin::parse_code_info with password" ) {
-            test_code_parsing(CODE+PWD, PWD);
+        CATCH_SECTION ( "testing Bin::parse_code_info with values per key" ) {
+            test_code_parsing(CODE_VPK, 8, "");
+            test_code_parsing(CODE_VPK+PWD, 8, PWD);
+        }
+        CATCH_SECTION ( "testing invalid codes" ) {
+            CATCH_REQUIRE_FALSE ( pbt::parse_code_info("").has_value() );
+            CATCH_REQUIRE_FALSE ( pbt::parse_code_info(LCODE+"00").has_value() );
+            CATCH_REQUIRE_FALSE ( pbt::parse_code_info(CODE+"0").has_value() );
+            CATCH_REQUIRE_FALSE ( pbt::parse_code_info(CODE+"g").has_value() );
         }
     }
     CATCH_SECTION ( "bad pins" ) {

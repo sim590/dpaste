@@ -77,16 +77,16 @@ public:
     }
 };
 
-TEST_CASE("Node starts even when the cache path is unusable", "[Node][cache]") {
+CATCH_TEST_CASE("Node starts even when the cache path is unusable", "[Node][cache]") {
     PirateNodeTester pt;
     CacheFileGuard cache;
 
     dpaste::Node node {};
     node.run();
-    REQUIRE(pt.is_running(node));
+    CATCH_REQUIRE(pt.is_running(node));
 
     node.stop();
-    REQUIRE_FALSE(pt.is_running(node));
+    CATCH_REQUIRE_FALSE(pt.is_running(node));
 }
 
 CATCH_TEST_CASE("Node get/paste on DHT", "[Node][get][paste]") {

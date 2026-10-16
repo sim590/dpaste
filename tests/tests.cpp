@@ -18,10 +18,13 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <iomanip>
 #include <random>
+#include <sstream>
 
-#include "catch.h"
 #include <catch2/catch_all.hpp>
+
+#include "code.h"
 
 namespace dpaste {
 namespace tests {
@@ -34,7 +37,7 @@ void init() {
     if (initialized)
         return;
 
-    rand_.seed(Catch::rngSeed());
+    rand_.seed(Catch::getSeed());
 
     initialized = true;
 }
@@ -47,7 +50,7 @@ int random_number() {
 std::string random_code() {
     const auto i = random_number();
     std::stringstream ss;
-    ss << std::hex << i;
+    ss << std::setfill('0') << std::setw(code::DPASTE_PIN_LEN) << std::hex << i;
     return ss.str();
 }
 

@@ -38,17 +38,17 @@ class FakeHttpServer {
 public:
     explicit FakeHttpServer(const std::string& response_body) : response_body(response_body) {
         listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-        REQUIRE(listen_fd >= 0);
+        CATCH_REQUIRE(listen_fd >= 0);
 
         sockaddr_in address {};
         address.sin_family      = AF_INET;
         address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         address.sin_port        = htons(0);
-        REQUIRE(bind(listen_fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
-        REQUIRE(listen(listen_fd, 1) == 0);
+        CATCH_REQUIRE(bind(listen_fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
+        CATCH_REQUIRE(listen(listen_fd, 1) == 0);
 
         socklen_t length = sizeof(address);
-        REQUIRE(getsockname(listen_fd, reinterpret_cast<sockaddr*>(&address), &length) == 0);
+        CATCH_REQUIRE(getsockname(listen_fd, reinterpret_cast<sockaddr*>(&address), &length) == 0);
         server_port = ntohs(address.sin_port);
         worker = std::thread(&FakeHttpServer::serve, this);
     }
@@ -118,49 +118,81 @@ private:
 
 static long closed_loopback_port() {
     const int fd = socket(AF_INET, SOCK_STREAM, 0);
-    REQUIRE(fd >= 0);
+    CATCH_REQUIRE(fd >= 0);
 
     sockaddr_in address {};
     address.sin_family      = AF_INET;
     address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     address.sin_port        = htons(0);
-    REQUIRE(bind(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
+    CATCH_REQUIRE(bind(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
 
     socklen_t length = sizeof(address);
-    REQUIRE(getsockname(fd, reinterpret_cast<sockaddr*>(&address), &length) == 0);
+    CATCH_REQUIRE(getsockname(fd, reinterpret_cast<sockaddr*>(&address), &length) == 0);
     const long port = ntohs(address.sin_port);
     close(fd);
     return port;
 }
 
-TEST_CASE("HttpClient gets the dpaste Value from proxy NDJSON", "[HttpClient][get]") {
+CATCH_TEST_CASE("HttpClient gets the dpaste Value from proxy NDJSON", "[HttpClient][get]") {
     FakeHttpServer server("{\"utype\":\"other\",\"data\":\"bm90IHRoaXM=\"}\n"
             "{\"utype\":\"dpaste\",\"data\":\"aGVsbG8=\"}\n");
     HttpClient client("127.0.0.1", server.port());
 
-    REQUIRE(client.get("get-test") == "hello");
+    const auto values = client.get("get-test");
+    CATCH_REQUIRE ( values.size() == 1 );
+    CATCH_REQUIRE ( values.front() == "hello" );
     server.join();
 }
 
-TEST_CASE("HttpClient puts a dpaste Value through the proxy", "[HttpClient][put]") {
+CATCH_TEST_CASE("HttpClient gets all dpaste Values from proxy NDJSON", "[HttpClient][get]") {
+    FakeHttpServer server("{\"utype\":\"dpaste\",\"data\":\"aGVsbG8=\"}\n"
+            "{\"utype\":\"dpaste\",\"data\":\"d29ybGQ=\"}\n");
+    HttpClient client("127.0.0.1", server.port());
+
+    const auto values = client.get("get-test");
+    CATCH_REQUIRE ( values.size() == 2 );
+    CATCH_REQUIRE ( values[0] == "hello" );
+    CATCH_REQUIRE ( values[1] == "world" );
+    server.join();
+}
+
+CATCH_TEST_CASE("HttpClient probes the proxy stats endpoint", "[HttpClient][isAvailable]") {
+    FakeHttpServer server("{\"serverStartTime\":1700000000,\"listenCount\":0}\n");
+    HttpClient client("127.0.0.1", server.port());
+
+    CATCH_REQUIRE ( client.isAvailable() );
+    server.join();
+    CATCH_REQUIRE ( server.request().find("GET /node/stats") != std::string::npos );
+}
+
+CATCH_TEST_CASE("HttpClient rejects a proxy without stats", "[HttpClient][isAvailable]") {
+    FakeHttpServer server("{\"foo\":42}\n");
+    HttpClient client("127.0.0.1", server.port());
+
+    CATCH_REQUIRE_FALSE ( client.isAvailable() );
+    server.join();
+}
+
+CATCH_TEST_CASE("HttpClient puts a dpaste Value through the proxy", "[HttpClient][put]") {
     FakeHttpServer server("");
     HttpClient client("127.0.0.1", server.port());
 
-    REQUIRE(client.put("put-test", "hello"));
+    CATCH_REQUIRE(client.put("put-test", "hello"));
     server.join();
     const auto body_start = server.request().find("\r\n\r\n");
-    REQUIRE(body_start != std::string::npos);
+    CATCH_REQUIRE(body_start != std::string::npos);
     const auto body = server.request().substr(body_start + 4);
-    REQUIRE(body.find("\"utype\":\"dpaste\"") != std::string::npos);
-    REQUIRE(body.find("\"data\":\"aGVsbG8=\"") != std::string::npos);
+    CATCH_REQUIRE(body.find("\"utype\":\"dpaste\"") != std::string::npos);
+    CATCH_REQUIRE(body.find("\"data\":\"aGVsbG8=\"") != std::string::npos);
 }
 
-TEST_CASE("HttpClient handles an unavailable proxy", "[HttpClient][errors]") {
+CATCH_TEST_CASE("HttpClient handles an unavailable proxy", "[HttpClient][errors]") {
     const auto port = closed_loopback_port();
     HttpClient client("127.0.0.1", port);
 
-    REQUIRE(client.get("unavailable-test").empty());
-    REQUIRE_FALSE(client.put("unavailable-test", "hello"));
+    CATCH_REQUIRE ( client.get("unavailable-test").empty() );
+    CATCH_REQUIRE_FALSE ( client.isAvailable() );
+    CATCH_REQUIRE_FALSE ( client.put("unavailable-test", "hello") );
 }
 
 } /* tests */
