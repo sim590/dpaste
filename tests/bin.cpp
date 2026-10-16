@@ -20,6 +20,8 @@
 
 #include <algorithm>
 
+#include <msgpack.hpp>
+
 #include "code.h"
 #include "tests.h"
 #include "bin.h"
@@ -190,6 +192,23 @@ CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_
             test_code_parsing(CODE_VPK+PWD, 16, PWD);
             test_code_parsing(CODE+"20", 32, ""); /* two characters allow more than 15 */
         }
+        CATCH_SECTION ( "testing legacy codes (releases up to 0.5.0)" ) {
+            const auto legacy = pbt::parse_code_info(LCODE);
+            CATCH_REQUIRE ( legacy.has_value() );
+            CATCH_REQUIRE ( legacy->lcode    == LCODE );
+            CATCH_REQUIRE ( legacy->npackets == 1 );
+            CATCH_REQUIRE ( legacy->vpk      == 1 );
+            CATCH_REQUIRE ( legacy->pwd      == "" );
+            CATCH_REQUIRE ( legacy->format   == code::Format::LEGACY_PIN );
+
+            const auto legacy_pwd = pbt::parse_code_info(LCODE + PWD);
+            CATCH_REQUIRE ( legacy_pwd.has_value() );
+            CATCH_REQUIRE ( legacy_pwd->lcode    == LCODE );
+            CATCH_REQUIRE ( legacy_pwd->npackets == 1 );
+            CATCH_REQUIRE ( legacy_pwd->vpk      == 1 );
+            CATCH_REQUIRE ( legacy_pwd->pwd      == PWD );
+            CATCH_REQUIRE ( legacy_pwd->format   == code::Format::LEGACY_PIN_PWD );
+        }
         CATCH_SECTION ( "testing invalid codes" ) {
             CATCH_REQUIRE_FALSE ( pbt::parse_code_info("").has_value() );
             CATCH_REQUIRE_FALSE ( pbt::parse_code_info(LCODE+"00").has_value() );
@@ -239,6 +258,21 @@ CATCH_TEST_CASE("Bin parsing of legacy raw values", "[Bin][parse_data]") {
         CATCH_REQUIRE ( parsed.has_value() );
         CATCH_REQUIRE_FALSE ( parsed->index.has_value() );
         CATCH_REQUIRE ( parsed->data == std::vector<uint8_t>({'r', 'a', 'w'}) );
+    }
+    CATCH_SECTION ( "MessagePack map without a data scheme" ) {
+        /* Releases up to 0.5.0 stored a MessagePack map with the data and an
+         * optional signature, but no scheme nor index. */
+        msgpack::sbuffer buffer;
+        msgpack::packer<msgpack::sbuffer> pk(&buffer);
+        pk.pack_map(2);
+        pk.pack("data");      pk.pack(std::vector<uint8_t> {'o', 'l', 'd'});
+        pk.pack("signature"); pk.pack(std::vector<uint8_t> {});
+        std::vector<uint8_t> value {buffer.data(), buffer.data()+buffer.size()};
+
+        auto parsed = PirateBinTester::parse_data(bin, std::move(value), "", false);
+        CATCH_REQUIRE ( parsed.has_value() );
+        CATCH_REQUIRE_FALSE ( parsed->index.has_value() );
+        CATCH_REQUIRE ( parsed->data == std::vector<uint8_t>({'o', 'l', 'd'}) );
     }
 }
 
