@@ -382,6 +382,11 @@ Bin::paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>
     auto& packets = pp.first;
     auto& pwd     = pp.second;
 
+    if (packets.empty()) {
+        DPASTE_MSG("Empty input. Nothing to paste.");
+        return {};
+    }
+
     DPASTE_MSG("Pasting data...");
     for (size_t i = 0; i < packets.size(); ++i) {
         const auto& p = packets[i];

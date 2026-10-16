@@ -109,6 +109,11 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
             }
         }
     }
+
+    CATCH_SECTION ( "pasting empty input" ) {
+        std::stringstream empty;
+        CATCH_REQUIRE ( bin.paste(std::move(empty), {}, true).empty() );
+    }
 }
 
 CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_dpaste_uri][parse_code_info]") {
