@@ -229,7 +229,7 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool 
     const bool one_per_key = code_info->format != code::Format::PIN_NPACKETS_VPK
                          and code_info->format != code::Format::PIN_NPACKETS_VPK_PWD;
 
-    auto available = http_client_->isAvailable();
+    auto available = not no_proxy and http_client_->isAvailable();
     auto get_method = [this,&available,&no_proxy](const auto& c) {
         std::vector<std::vector<uint8_t>> values;
         /* if available, try http server */
@@ -376,7 +376,7 @@ Bin::prepare_data(std::stringstream&& input_stream,
 std::string
 Bin::paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy) {
     auto pin          = random_.integer();
-    auto available    = http_client_->isAvailable();
+    auto available    = not no_proxy and http_client_->isAvailable();
     auto paste_method = [this,&available,&no_proxy](const auto& c, auto&& d) {
         if (available and not no_proxy) return http_client_->put(c, {d.begin(), d.end()});
         else                            return node.paste(c, std::forward<std::vector<uint8_t>>(d));

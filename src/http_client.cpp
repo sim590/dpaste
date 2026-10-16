@@ -60,6 +60,9 @@ bool HttpClient::isAvailable() const {
         req.setOpt<curlpp::options::Port>(port);
         req.setOpt<curlpp::options::Url>(HTTP_PROTO + urlHost(host) + "/node/stats");
         req.setOpt(curlpp::Options::WriteStream(&response));
+        /* Bound the probe so that an unreachable proxy cannot block for the
+         * default curl timeouts. */
+        req.setOpt(curlpp::Options::Timeout(5));
 
         try {
             req.perform();
