@@ -239,6 +239,10 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool 
                 std::move(data.begin(), data.end(), std::back_inserter(blob));
                 values.emplace_back(std::move(blob));
             }
+            /* A successful probe does not guarantee that the request
+             * succeeds: fall back to the local node. */
+            if (values.empty())
+                values = node.get(c);
         /* if fail, then perform request from local node */
         } else
             values = node.get(c);
@@ -378,8 +382,14 @@ Bin::paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>
     auto pin          = random_.integer();
     auto available    = not no_proxy and http_client_->isAvailable();
     auto paste_method = [this,&available,&no_proxy](const auto& c, auto&& d) {
-        if (available and not no_proxy) return http_client_->put(c, {d.begin(), d.end()});
-        else                            return node.paste(c, std::forward<std::vector<uint8_t>>(d));
+        if (available and not no_proxy) {
+            if (http_client_->put(c, {d.begin(), d.end()}))
+                return true;
+            /* The proxy request may fail even if the stats probe succeeded:
+             * fall back to the local node. */
+            return node.paste(c, std::forward<std::vector<uint8_t>>(d));
+        } else
+            return node.paste(c, std::forward<std::vector<uint8_t>>(d));
     };
 
     auto pp = prepare_data(std::forward<std::stringstream>(input_stream),
