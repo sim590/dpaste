@@ -60,6 +60,11 @@ public:
     prepare_data(Bin& bin, std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params) {
         return bin.prepare_data(std::move(input_stream), std::move(params));
     }
+
+    static std::optional<Bin::ParsedPacket>
+    parse_data(Bin& bin, std::vector<uint8_t>&& value, std::string pwd, bool no_decrypt) {
+        return bin.parse_data(std::move(value), std::move(pwd), no_decrypt);
+    }
 };
 
 void test_paste(Bin& bin, const std::vector<uint8_t>& data, bool no_proxy) {
@@ -224,6 +229,17 @@ CATCH_TEST_CASE("Bin conversion of stringstream to vector", "[Bin][data_from_str
     std::stringstream ss(DATA);
     std::vector<uint8_t> d {DATA.begin(), DATA.end()};
     CATCH_REQUIRE ( pt.data_from_stream(ss, DATA.size()) == d );
+}
+
+CATCH_TEST_CASE("Bin parsing of legacy raw values", "[Bin][parse_data]") {
+    Bin bin {};
+    CATCH_SECTION ( "raw value which is not a MessagePack map" ) {
+        std::vector<uint8_t> raw = {'r', 'a', 'w'};
+        auto parsed = PirateBinTester::parse_data(bin, std::move(raw), "", false);
+        CATCH_REQUIRE ( parsed.has_value() );
+        CATCH_REQUIRE_FALSE ( parsed->index.has_value() );
+        CATCH_REQUIRE ( parsed->data == std::vector<uint8_t>({'r', 'a', 'w'}) );
+    }
 }
 
 } /* tests */

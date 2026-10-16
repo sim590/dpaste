@@ -208,7 +208,11 @@ Bin::parse_data(std::vector<uint8_t>&& value,
         DPASTE_MSG("%s", e.what());
         DPASTE_MSG("Insufficient bytes to unpack the data. The data may be corrupted or missing.");
         return std::nullopt;
-    } catch (msgpack::type_error& e) { } /* backward compatibility with <=0.3.3 */
+    } catch (msgpack::type_error& e) {
+        /* Releases up to 0.3.3 stored raw values which are not MessagePack
+         * maps. Return them as unindexed packets. */
+        return ParsedPacket { std::nullopt, std::move(value) };
+    }
 
     return std::nullopt;
 }
