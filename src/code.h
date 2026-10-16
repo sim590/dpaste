@@ -1,5 +1,5 @@
 /*
- * Copyright © 2020 Simon Désaulniers
+ * Copyright © 2026 Simon Désaulniers
  * Author: Simon Désaulniers <sim.desaulniers@gmail.com>
  *
  * This file is part of dpaste.
