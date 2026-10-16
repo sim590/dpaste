@@ -59,7 +59,7 @@ public:
      * ceil(npackets / VALUES_PER_KEY) keys so that retrieving a paste takes a
      * limited number of DHT requests.
      */
-    static const constexpr uint8_t VALUES_PER_KEY {8};
+    static const constexpr uint8_t VALUES_PER_KEY {16};
 
     Bin();
     virtual ~Bin () {}

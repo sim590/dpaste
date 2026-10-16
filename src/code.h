@@ -39,7 +39,7 @@ static const constexpr unsigned int DPASTE_PIN_LEN {8};
  * Number of bytes in a dpaste code accounting for the number of values stored
  * under the same key.
  */
-static const constexpr unsigned int DPASTE_VPK_LEN {1};
+static const constexpr unsigned int DPASTE_VPK_LEN {2};
 
 /**
  * Number of bytes used to encode the AES password.

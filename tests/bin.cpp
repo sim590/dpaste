@@ -117,7 +117,7 @@ CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_
     const std::string NPACKETSS = pbt::hexStrFromInt(NPACKETS, 2);
     const std::string LCODE     = random_code();
     const std::string CODE      = LCODE + NPACKETSS;
-    const std::string VPKSS     = "8";
+    const std::string VPKSS     = "10";
     const std::string CODE_VPK  = CODE + VPKSS;
     const std::string PWD       = random_code();
     std::string pin_upper {CODE.begin(), CODE.end()};
@@ -162,14 +162,16 @@ CATCH_TEST_CASE("Bin parsing of uri code ([dpaste:]XXXXXXXX)", "[Bin][code_from_
             test_code_parsing(CODE+PWD, 1, PWD);
         }
         CATCH_SECTION ( "testing Bin::parse_code_info with values per key" ) {
-            test_code_parsing(CODE_VPK, 8, "");
-            test_code_parsing(CODE_VPK+PWD, 8, PWD);
+            test_code_parsing(CODE_VPK, 16, "");
+            test_code_parsing(CODE_VPK+PWD, 16, PWD);
+            test_code_parsing(CODE+"20", 32, ""); /* two characters allow more than 15 */
         }
         CATCH_SECTION ( "testing invalid codes" ) {
             CATCH_REQUIRE_FALSE ( pbt::parse_code_info("").has_value() );
             CATCH_REQUIRE_FALSE ( pbt::parse_code_info(LCODE+"00").has_value() );
+            CATCH_REQUIRE_FALSE ( pbt::parse_code_info(CODE+"00").has_value() );
+            CATCH_REQUIRE_FALSE ( pbt::parse_code_info(CODE+"zz").has_value() );
             CATCH_REQUIRE_FALSE ( pbt::parse_code_info(CODE+"0").has_value() );
-            CATCH_REQUIRE_FALSE ( pbt::parse_code_info(CODE+"g").has_value() );
         }
     }
     CATCH_SECTION ( "bad pins" ) {
