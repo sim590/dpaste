@@ -242,34 +242,47 @@ std::pair<bool, std::string> Bin::get(std::string&& code, bool no_decrypt, bool 
                          and code_info->format != code::Format::PIN_NPACKETS_VPK_PWD;
 
     auto available = not no_proxy and http_client_->isAvailable();
-    auto get_method = [this,&available,&no_proxy](const auto& c) {
-        std::vector<std::vector<uint8_t>> values;
-        /* if available, try http server */
-        if (available and not no_proxy) {
-            for (auto& data : http_client_->get(c)) {
-                std::vector<uint8_t> blob;
-                std::move(data.begin(), data.end(), std::back_inserter(blob));
-                values.emplace_back(std::move(blob));
-            }
-            /* A successful probe does not guarantee that the request
-             * succeeds: fall back to the local node. */
-            if (values.empty())
-                values = node.get(c);
-        /* if fail, then perform request from local node */
-        } else
-            values = node.get(c);
-        return values;
-    };
 
     const uint32_t nkeys = static_cast<uint32_t>(std::ceil(static_cast<double>(npackets) / vpk));
+
+    /* The first key is looked up with the raw location code so that unpadded
+     * pins from releases before 0.4.0 keep their original key. */
+    std::vector<std::string> targets(nkeys);
+    for (uint32_t k = 0; k < nkeys; ++k)
+        targets[k] = k == 0 ? lcode : code_from_pin(code_info->pin + k);
+
+    /* Fetch every key in one batch. */
+    std::vector<std::vector<dht::Blob>> key_values(nkeys);
+    std::vector<size_t> missing;
+    if (available) {
+        const auto responses = http_client_->getAll(targets);
+        for (size_t k = 0; k < nkeys; ++k) {
+            for (auto& data : responses[k])
+                key_values[k].emplace_back(data.begin(), data.end());
+            /* A successful probe does not guarantee that a request succeeds:
+             * fall back to the local node for the missing ones. */
+            if (key_values[k].empty())
+                missing.push_back(k);
+        }
+    } else {
+        for (size_t k = 0; k < nkeys; ++k)
+            missing.push_back(k);
+    }
+    if (not missing.empty()) {
+        std::vector<std::string> retry;
+        retry.reserve(missing.size());
+        for (auto k : missing)
+            retry.push_back(targets[k]);
+        const auto node_values = node.getAll(retry);
+        for (size_t j = 0; j < missing.size(); ++j)
+            key_values[missing[j]] = node_values[j];
+    }
+
     std::vector<std::vector<uint8_t>> chunks(npackets);
     std::vector<bool> found(npackets, false);
 
     for (uint32_t k = 0; k < nkeys; ++k) {
-        /* The first key is looked up with the raw location code so that
-         * unpadded pins from releases before 0.4.0 keep their original key. */
-        const std::string target = k == 0 ? lcode : code_from_pin(code_info->pin + k);
-        for (auto& value : get_method(target)) {
+        for (auto& value : key_values[k]) {
             auto parsed = parse_data(std::move(value), pwd, no_decrypt);
             if (not parsed or parsed->data.empty())
                 return {false, {}};
@@ -391,18 +404,7 @@ Bin::prepare_data(std::stringstream&& input_stream,
 
 std::string
 Bin::paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy) {
-    auto pin          = random_.integer();
-    auto available    = not no_proxy and http_client_->isAvailable();
-    auto paste_method = [this,&available,&no_proxy](const auto& c, auto&& d) {
-        if (available and not no_proxy) {
-            if (http_client_->put(c, {d.begin(), d.end()}))
-                return true;
-            /* The proxy request may fail even if the stats probe succeeded:
-             * fall back to the local node. */
-            return node.paste(c, std::forward<std::vector<uint8_t>>(d));
-        } else
-            return node.paste(c, std::forward<std::vector<uint8_t>>(d));
-    };
+    auto pin = random_.integer();
 
     auto pp = prepare_data(std::forward<std::stringstream>(input_stream),
                                 std::forward<std::unique_ptr<crypto::Parameters>>(params));
@@ -414,23 +416,53 @@ Bin::paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>
         return {};
     }
 
-    DPASTE_MSG("Pasting data...");
+    /* Build the request batch: packets are spread contiguously,
+     * VALUES_PER_KEY packets per key. */
+    std::vector<std::pair<std::string, std::string>> items;
+    items.reserve(packets.size());
     for (size_t i = 0; i < packets.size(); ++i) {
-        const auto& p = packets[i];
-        /* Packets are spread contiguously: VALUES_PER_KEY packets per key. */
         const uint32_t key_index = static_cast<uint32_t>(i / Bin::VALUES_PER_KEY);
         auto code                = code_from_pin(pin + key_index);
-        auto bin_packet          = p.serialize();
+        auto bin_packet          = packets[i].serialize();
         /* OpenDHT drops values bigger than MAX_VALUE_SIZE, which would make
          * the whole paste fail silently at the proxy. */
         if (bin_packet.size() + std::strlen(Node::DPASTE_USER_TYPE) > dht::MAX_VALUE_SIZE) {
             DPASTE_MSG("Packet is too large for the DHT (%zu bytes). Not publishing.", bin_packet.size());
             return {};
         }
-        bool success             = paste_method(code, std::move(bin_packet));
-        if (not success)
-            return {};
+        items.emplace_back(std::move(code), std::string(bin_packet.begin(), bin_packet.end()));
     }
+
+    DPASTE_MSG("Pasting data...");
+    std::vector<bool> results;
+    const auto available = not no_proxy and http_client_->isAvailable();
+    if (available) {
+        results = http_client_->putAll(items);
+        /* A proxy request may fail even if the stats probe succeeded: retry
+         * the failed ones on the local node. */
+        std::vector<size_t> failed;
+        for (size_t i = 0; i < results.size(); ++i)
+            if (not results[i])
+                failed.push_back(i);
+        if (not failed.empty()) {
+            std::vector<std::pair<std::string, dht::Blob>> retry;
+            retry.reserve(failed.size());
+            for (auto i : failed)
+                retry.emplace_back(items[i].first, dht::Blob(items[i].second.begin(), items[i].second.end()));
+            const auto retry_results = node.pasteAll(std::move(retry));
+            for (size_t j = 0; j < failed.size(); ++j)
+                results[failed[j]] = retry_results[j];
+        }
+    } else {
+        std::vector<std::pair<std::string, dht::Blob>> node_items;
+        node_items.reserve(items.size());
+        for (auto& item : items)
+            node_items.emplace_back(item.first, dht::Blob(item.second.begin(), item.second.end()));
+        results = node.pasteAll(std::move(node_items));
+    }
+
+    if (std::find(results.begin(), results.end(), false) != results.end())
+        return {};
 
     return DPASTE_URI_PREFIX
          + code_from_pin(pin)
