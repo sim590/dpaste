@@ -130,4 +130,71 @@ std::vector<dht::Blob> Node::get(const std::string& code) {
     return blobs;
 }
 
+std::vector<bool>
+Node::pasteAll(std::vector<std::pair<std::string, dht::Blob>>&& items) {
+    std::vector<bool> results(items.size(), false);
+    if (items.empty())
+        return results;
+
+    std::mutex mtx;
+    std::condition_variable cv;
+    std::unique_lock<std::mutex> lk(mtx);
+    size_t pending = items.size();
+    size_t idx     = 0;
+
+    for (auto& [code, blob] : items) {
+        auto v = std::make_shared<dht::Value>(std::move(blob));
+        v->user_type = DPASTE_USER_TYPE;
+
+        node_.put(dht::InfoHash::get(code), v, [&, i = idx++](bool success) {
+            std::lock_guard<std::mutex> g(mtx);
+            if (not success)
+                std::cerr << OPERATION_FAILURE_MSG << " (put)" << std::endl;
+            else
+                results[i] = true;
+            if (--pending == 0)
+                cv.notify_all();
+        });
+    }
+
+    /* Every put has been submitted; wait for all of their callbacks to run. */
+    cv.wait(lk, [&]{ return pending == 0; });
+    return results;
+}
+
+std::vector<std::vector<dht::Blob>>
+Node::getAll(const std::vector<std::string>& codes) {
+    std::vector<std::vector<dht::Blob>> results(codes.size());
+    if (codes.empty())
+        return results;
+
+    std::mutex mtx;
+    std::condition_variable cv;
+    std::unique_lock<std::mutex> lk(mtx);
+    size_t pending = codes.size();
+    size_t idx     = 0;
+
+    for (const auto& code : codes) {
+        const size_t i = idx++;
+        node_.get(dht::InfoHash::get(code),
+            [&results, i](std::shared_ptr<dht::Value> value) {
+                results[i].emplace_back(value->data);
+                return true;
+            },
+            [&, i](bool success) {
+                std::lock_guard<std::mutex> g(mtx);
+                if (not success)
+                    std::cerr << OPERATION_FAILURE_MSG << " (get)" << std::endl;
+                if (--pending == 0)
+                    cv.notify_all();
+            },
+            dht::Value::AllFilter(), dht::Where{}.userType(std::string(DPASTE_USER_TYPE))
+        );
+    }
+
+    /* Every lookup has been submitted; wait for all of their callbacks to run. */
+    cv.wait(lk, [&]{ return pending == 0; });
+    return results;
+}
+
 } /* dpaste */

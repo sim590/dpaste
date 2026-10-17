@@ -23,6 +23,8 @@
 #include <cstdint>
 #include <string>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include <opendht/dhtrunner.h>
 #include <opendht/value.h>
@@ -122,6 +124,26 @@ public:
      * @return the blobs.
      */
     std::vector<dht::Blob> get(const std::string& code);
+
+    /**
+     * Publish several (code, blob) pairs at once. Blocks until every put has
+     * completed.
+     *
+     * @param items  The (code, blob) pairs to publish.
+     *
+     * @return one success flag per item, in the same order.
+     */
+    std::vector<bool> pasteAll(std::vector<std::pair<std::string, dht::Blob>>&& items);
+
+    /**
+     * Recover the blob values for several codes at once. Blocks until every
+     * lookup has completed.
+     *
+     * @param codes  The codes to lookup.
+     *
+     * @return the blobs recovered for each code, in the same order.
+     */
+    std::vector<std::vector<dht::Blob>> getAll(const std::vector<std::string>& codes);
 
 private:
 
