@@ -114,7 +114,7 @@ std::string makeRequestBody(const std::string& data) {
 }
 
 /* Maximum number of transfers kept in flight at once by the batch operations. */
-static const constexpr size_t MAX_INFLIGHT_REQUESTS {8};
+static const constexpr size_t MAX_INFLIGHT_REQUESTS {32};
 /* Timeouts (in seconds) so that a stuck transfer cannot stall a whole batch. */
 static const constexpr long CONNECT_TIMEOUT_S {5};
 static const constexpr long REQUEST_TIMEOUT_S {120};
