@@ -50,11 +50,20 @@ std::string urlHost(const std::string& host) {
     return host;
 }
 
+/**
+ * Initialize libcurl once for the lifetime of the process. It must not be
+ * initialized or cleaned up while requests are in flight, which is what the
+ * previous per-request curlpp::Cleanup did (see #43, #48).
+ */
+void ensureCurlInit() {
+    static const curlpp::Cleanup cleanup;
+}
+
 } /* anonymous namespace */
 
 bool HttpClient::isAvailable() const {
     try {
-        curlpp::Cleanup mycleanup;
+        ensureCurlInit();
         curlpp::Easy req;
         std::stringstream response;
         req.setOpt<curlpp::options::Port>(port);
@@ -88,7 +97,7 @@ bool HttpClient::isAvailable() const {
 
 std::vector<std::string> HttpClient::get(const std::string& code) const {
     try {
-        curlpp::Cleanup mycleanup;
+        ensureCurlInit();
         curlpp::Easy req;
         std::stringstream response;
         req.setOpt<curlpp::options::Port>(port);
@@ -135,7 +144,7 @@ std::vector<std::string> HttpClient::get(const std::string& code) const {
 
 bool HttpClient::put(const std::string& code, const std::string& data) const {
     try {
-        curlpp::Cleanup mycleanup;
+        ensureCurlInit();
         curlpp::Easy req;
         req.setOpt<curlpp::options::Port>(port);
         req.setOpt<curlpp::options::Url>(HTTP_PROTO + urlHost(host) + "/key/" +
