@@ -19,6 +19,7 @@
  */
 
 #include <algorithm>
+#include <random>
 
 #include <msgpack.hpp>
 
@@ -134,6 +135,27 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
         for (const auto& p : pp.first)
             total += p.data.size();
         CATCH_REQUIRE ( total == Bin::DPASTE_MAX_SIZE );
+    }
+}
+
+CATCH_TEST_CASE("Bin cross-key round trips", "[Bin][get][paste][cross-key]") {
+    /* 16 packets of 52 KiB fit under a single key (832 KiB). A larger paste
+     * exercises the key rollover and the reconstruction order, so use a
+     * nonuniform buffer: swapping two chunks must change the retrieved data. */
+    std::vector<uint8_t> buffer(1024 * 1024);
+    std::mt19937 gen(0xdeadbeef);
+    std::uniform_int_distribution<unsigned int> dist(0, 255);
+    std::generate(buffer.begin(), buffer.end(),
+                  [&gen, &dist] { return static_cast<uint8_t>(dist(gen)); });
+
+    Bin bin {};
+    crypto::Cipher::init();
+
+    CATCH_SECTION ( "plain data" ) {
+        test_paste(bin, buffer, true);
+    }
+    CATCH_SECTION ( "AES encrypted data" ) {
+        test_paste_encrypted(bin, buffer, true);
     }
 }
 
