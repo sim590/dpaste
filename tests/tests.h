@@ -24,7 +24,7 @@ namespace dpaste {
 namespace tests {
 
 int random_number();
-std::string random_pin();
+std::string random_code();
 
 } /* tests */
 } /* dpaste */

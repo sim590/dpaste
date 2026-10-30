@@ -36,7 +36,7 @@ using Parameters = std::variant<GPGParameters, AESParameters>;
 
 class Cipher {
 public:
-    enum class Scheme : int { NONE=0, GPG, AES };
+    enum class Scheme : uint8_t { NONE=0, GPG, AES };
 
     virtual ~Cipher () {}
 
@@ -75,13 +75,18 @@ public:
     static std::shared_ptr<Cipher> get(Scheme scheme, std::shared_ptr<Parameters>&& init_params={});
 
     /**
-     * Returns a cipher according to the cipher text put in parameters.
+     * Get a cipher for a legacy packet, i.e. a packet written by releases up
+     * to 0.5.0, which does not store a data scheme.
+     *
+     * A password in the code selects AES. Otherwise the cipher text is checked
+     * for an OpenPGP encrypted message. Anything else is plain data.
      *
      * @param cipher_text  The cipher text to guess the cipher from.
+     * @param pwd          The password carried by the code, if any.
      *
-     * @return A cipher
+     * @return A cipher, or nothing if the data is not encrypted.
      */
-    static std::shared_ptr<Cipher> get(const std::vector<uint8_t>& cipher_text, const std::string& pin);
+    static std::shared_ptr<Cipher> getLegacy(const std::vector<uint8_t>& cipher_text, const std::string& pwd);
 };
 
 struct GPGParameters {

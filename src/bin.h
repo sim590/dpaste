@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <memory>
 #include <map>
+#include <optional>
 #include <utility>
 
 #ifdef HAVE_CONFIG_H
@@ -34,6 +35,7 @@
 #include "node.h"
 #include "http_client.h"
 #include "cipher.h"
+#include "code.h"
 
 namespace dpaste {
 #ifdef DPASTE_TEST
@@ -46,7 +48,25 @@ class Bin {
 #endif
 public:
 
-    static const constexpr unsigned int DPASTE_PIN_LEN {8};
+    /**
+     * Maximal size to be read from the input stream and pasted on the DHT
+     * (possibly split in several packets).
+     */
+    static const constexpr size_t DPASTE_MAX_SIZE {2 * 1024 * 1024};
+
+    /**
+     * Number of packets stored under the same DHT key. Packets are spread on
+     * ceil(npackets / VALUES_PER_KEY) keys so that retrieving a paste takes a
+     * limited number of DHT requests.
+     */
+    static const constexpr uint8_t VALUES_PER_KEY {16};
+
+    /**
+     * Maximal size of a packet when encrypting with GPG. The ASCII armor
+     * expands the ciphertext by about 1.355x (base64 plus armor headers), so
+     * a full-size packet would exceed OpenDHT's maximum value size.
+     */
+    static const constexpr size_t GPG_SIZE_PER_PACKET {44 * 1024};
 
     Bin();
     virtual ~Bin () {}
@@ -71,18 +91,32 @@ public:
      *
      * @return the code (key) to the pasted data. If empty, then process failed.
      */
-    std::string paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy=false);
-    std::string paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy=false) {
-        return paste(data_from_stream(std::move(input_stream)),
-                std::forward<std::unique_ptr<crypto::Parameters>>(params), no_proxy);
+    std::string paste(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy=false) {
+        std::string is;
+        std::move(data.begin(), data.end(), std::back_inserter(is));
+        std::stringstream ss(std::move(is));
+        return paste(std::move(ss), std::forward<std::unique_ptr<crypto::Parameters>>(params), no_proxy);
     }
+    std::string paste(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params, bool no_proxy=false);
 
 private:
     /* constants */
     static const constexpr char* DPASTE_URI_PREFIX = "dpaste:";
-    static const constexpr uint8_t PROTO_VERSION = 0;
+    static const constexpr uint8_t PROTO_VERSION   = 1;
 
     struct Packet {
+        /**
+         * Bytes needed for the two layers of serialization. This accounts for
+         * dpaste's usage of msgpack as well as OpenDHT's and GPG
+         * encryption/signature.
+         */
+        static const constexpr size_t EXTRA_SERIALIZATION_BYTES {12 * 1024};
+
+        /* Data scheme as stored in packets written by protocol version 1 and
+         * later. Absent in packets written by releases up to 0.5.0. */
+        std::optional<crypto::Cipher::Scheme> data_scheme {};
+        /* Position of this packet in the pasted data. */
+        std::optional<uint16_t> index {};
         std::vector<uint8_t> data {};
         std::vector<uint8_t> signature {};
 
@@ -90,25 +124,76 @@ private:
         void deserialize(const std::vector<uint8_t>& pbuffer);
     };
 
+    /* A packet successfully parsed from a DHT value. */
+    struct ParsedPacket {
+        /* Position of the packet, if it was stored in the value. Absent in
+         * packets written before the index field was introduced. */
+        std::optional<uint16_t> index {};
+        std::vector<uint8_t> data {};
+    };
+
+    /*!
+     * @class   Random
+     * @brief   Random number generator state encapsulator.
+     * @details
+     * The structure contains the the state of the random number generator used
+     * by the Bin class to perform its random code generation. The structure
+     * is embeded inside the Bin class as a private member.
+     */
+    struct Random {
+        Random() {
+            std::random_device rdev;
+            std::seed_seq seed {rdev(), rdev()};
+            gen.seed(seed);
+        }
+
+        inline uint32_t integer() { return dist(gen); }
+
+        std::uniform_int_distribution<uint32_t> dist;
+        std::mt19937_64 gen;
+    };
+
     /**
      * Create a Packet from input data and crypto parameters.
      *
-     * @param data    input data in bytes.
-     * @param params  cryptographic parameters (either GPGParameters or
-     *                AESParameters).
+     * @param input_stream  input data stream of bytes.
+     * @param params        cryptographic parameters (either GPGParameters or
+     *                      AESParameters).
      *
      * @return an ordered pair of a Packet and associated password.
      */
-    std::pair<Bin::Packet, std::string> prepare_data(std::vector<uint8_t>&& data, std::unique_ptr<crypto::Parameters>&& params);
+    std::pair<std::vector<Bin::Packet>, std::string>
+    prepare_data(std::stringstream&& input_stream, std::unique_ptr<crypto::Parameters>&& params);
+
+    /**
+     * Parses a DHT value recovered from the DHT get operation.
+     *
+     * The data scheme stored in the packet selects the cipher. Packets without
+     * a scheme (written by releases up to 0.5.0) fall back to the detection
+     * used by those releases; since that detection is a guess, a failed
+     * OpenPGP decryption returns the raw value instead of dropping it.
+     *
+     * @param value       The value to parse.
+     * @param pwd         The password used to decrypt the AES encrypted data
+     *                    (if it was present in the input code).
+     * @param no_decrypt  A bool indicating if the data should be decrypted
+     *                    before being returned.
+     *
+     * @return The parsed packet, or nothing if the value is unusable.
+     */
+    std::optional<ParsedPacket> parse_data(std::vector<uint8_t>&& value,
+                                           std::string pwd,
+                                           bool no_decrypt) const;
 
     /**
      * Get data from input stream.
      *
      * @param input_stream  The stream to read to get the data.
+     * @param count         Number of bytes to be read from the stream.
      *
      * @return the data
      */
-    static std::vector<uint8_t> data_from_stream(std::stringstream&& input_stream);
+    static std::vector<uint8_t> data_from_stream(std::stringstream& input_stream, const size_t& count);
 
     /**
      * Parse dpaste uri for code.
@@ -119,13 +204,63 @@ private:
      */
     static std::string code_from_dpaste_uri(const std::string& uri);
 
-    static std::string random_pin();
+    /**
+     * Parses the input code.
+     *
+     * Supported formats all start with the location pin, optionally followed
+     * by a packet count and an AES password:
+     *
+     *     PIN                                (releases up to 0.5.0)
+     *     PIN + PASSWORD                     (releases up to 0.5.0, AES)
+     *     PIN + NPACKETS                     (with packet splitting)
+     *     PIN + NPACKETS + PASSWORD          (with packet splitting, AES)
+     *     PIN + NPACKETS + VPK               (with values per key)
+     *     PIN + NPACKETS + VPK + PASSWORD    (with values per key, AES)
+     *
+     * The code length is unambiguous for these formats, so parsing is
+     * dispatched on it.
+     *
+     * @param code  The input code.
+     *
+     * @return The parsed code information, or nothing if the code is invalid.
+     */
+    static std::optional<code::Info> parse_code_info(const std::string& code);
 
+    /**
+     * Converts a number into its hexadecimal `len` bytes long string value
+     * with zeroes padding in prefix when necessary.
+     *
+     * @param i    The integer.
+     * @param len  The length of the resulting string.
+     *
+     * @return the resulting hexadecimal string representation of the integer.
+     */
+    static std::string hexStrFromInt(uint32_t i, size_t len);
+
+    /**
+     * Converts a PIN number into a string code, i.e. an hexadecimal string
+     * representation of the PIN in upper case.
+     *
+     * @param i  The integer.
+     *
+     * @return the resulting hexadecimal string representation of the integer.
+     */
+    static std::string code_from_pin(uint32_t i);
+
+    /**
+     * Generates a random PIN using a 32-bit random number generator. The
+     * resulting string describes a 32-bit value.
+     */
+    inline std::string random_pin() { return code_from_pin(random_.integer()); }
+
+    /* A map containing the configuration read from the config file on disk. */
     std::map<std::string, std::string> conf_;
 
     /* transport */
     std::unique_ptr<HttpClient> http_client_ {};
     Node node {};
+
+    Random random_ {};
 };
 
 } /* dpaste */

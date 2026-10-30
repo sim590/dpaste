@@ -52,7 +52,41 @@ std::string urlHost(const std::string& host) {
 
 } /* anonymous namespace */
 
-std::string HttpClient::get(const std::string& code) const {
+bool HttpClient::isAvailable() const {
+    try {
+        curlpp::Cleanup mycleanup;
+        curlpp::Easy req;
+        std::stringstream response;
+        req.setOpt<curlpp::options::Port>(port);
+        req.setOpt<curlpp::options::Url>(HTTP_PROTO + urlHost(host) + "/node/stats");
+        req.setOpt(curlpp::Options::WriteStream(&response));
+        /* Bound the probe so that an unreachable proxy cannot block for the
+         * default curl timeouts. */
+        req.setOpt(curlpp::Options::Timeout(5));
+
+        try {
+            req.perform();
+            /* server gives code 200 when everything is fine. */
+            if (curlpp::Infos::ResponseCode::get(req) == 200) {
+                const auto stats = json::parse(response.str(), nullptr, false);
+                /* serverStartTime only exists since OpenDHT 3.5, but
+                 * listenCount is present in every version exposing this
+                 * endpoint. */
+                return stats.is_object()
+                    && (stats.contains("serverStartTime") || stats.contains("listenCount"));
+            }
+        } catch (curlpp::RuntimeError &e) {
+            DPASTE_MSG("%s", e.what());
+        }
+
+        return false;
+    } catch (curlpp::LogicError &e) {
+        DPASTE_MSG("%s", e.what());
+        return false;
+    }
+}
+
+std::vector<std::string> HttpClient::get(const std::string& code) const {
     try {
         curlpp::Cleanup mycleanup;
         curlpp::Easy req;
@@ -62,6 +96,7 @@ std::string HttpClient::get(const std::string& code) const {
                 dht::InfoHash::get(code).toString());
         req.setOpt(curlpp::Options::WriteStream(&response));
 
+        std::vector<std::string> values;
         try {
             req.perform();
             /* server gives code 200 when everything is fine. */
@@ -80,7 +115,7 @@ std::string HttpClient::get(const std::string& code) const {
                             std::ostringstream decoded;
                             base64::decoder decoder;
                             decoder.decode(encoded, decoded);
-                            return decoded.str();
+                            values.emplace_back(decoded.str());
                         }
                     } catch (const std::exception&) {
                         /* Ignore malformed or incompatible Value objects. */
@@ -91,7 +126,7 @@ std::string HttpClient::get(const std::string& code) const {
             DPASTE_MSG("%s", e.what());
         }
 
-        return {};
+        return values;
     } catch (curlpp::LogicError & e) {
         DPASTE_MSG("%s", e.what());
         return {};

@@ -19,6 +19,8 @@
  */
 
 #include "cipher.h"
+
+#include "code.h"
 #include "gpgcrypto.h"
 #include "aescrypto.h"
 
@@ -34,14 +36,6 @@ void Cipher::init() {
     initialized = true;
 }
 
-std::shared_ptr<Cipher> Cipher::get(const std::vector<uint8_t>& cipher_text, const std::string& pin="") {
-    if (GPG::isGPGencrypted(cipher_text))
-        return std::make_shared<GPG>();
-    else if (pin.size() == AES::PIN_WITH_PASS_LEN)
-        return std::make_shared<AES>();
-    return {};
-}
-
 std::shared_ptr<Cipher> Cipher::get(Scheme scheme, std::shared_ptr<Parameters>&& params) {
     switch (scheme) {
         case Scheme::AES:
@@ -54,6 +48,14 @@ std::shared_ptr<Cipher> Cipher::get(Scheme scheme, std::shared_ptr<Parameters>&&
         default:
             break;
     }
+    return {};
+}
+
+std::shared_ptr<Cipher> Cipher::getLegacy(const std::vector<uint8_t>& cipher_text, const std::string& pwd) {
+    if (not pwd.empty())
+        return std::make_shared<AES>();
+    else if (GPG::isGPGencrypted(cipher_text))
+        return std::make_shared<GPG>();
     return {};
 }
 

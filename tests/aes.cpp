@@ -28,7 +28,7 @@
 namespace dpaste {
 namespace tests {
 
-TEST_CASE("AES process plain/cipher text", "[AES][processPlainText][processCipherText]") {
+CATCH_TEST_CASE("AES process plain/cipher text", "[AES][processPlainText][processCipherText]") {
     crypto::AES aes {};
     std::vector<uint8_t> data {0,1,2,3,4};
     auto pwd = "this_is_a_really_good_pwd";
@@ -37,10 +37,10 @@ TEST_CASE("AES process plain/cipher text", "[AES][processPlainText][processCiphe
     p->emplace<crypto::AESParameters>(pwd);
 
     auto ct = aes.processPlainText(data, std::move(p));
-    REQUIRE ( not ct.empty() );
+    CATCH_REQUIRE ( not ct.empty() );
 
     auto pt = aes.processCipherText(ct, std::move(pp));
-    REQUIRE ( pt == data );
+    CATCH_REQUIRE ( pt == data );
 }
 
 } /* tests */
