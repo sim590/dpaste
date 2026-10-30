@@ -259,6 +259,22 @@ CATCH_TEST_CASE("Bin parsing of legacy raw values", "[Bin][parse_data]") {
         CATCH_REQUIRE_FALSE ( parsed->index.has_value() );
         CATCH_REQUIRE ( parsed->data == std::vector<uint8_t>({'r', 'a', 'w'}) );
     }
+    CATCH_SECTION ( "raw value starting like an incomplete MessagePack header" ) {
+        /* A lone 0xd9 byte announces a MessagePack string whose length byte
+         * is missing. Releases up to 0.3.3 stored raw values, so it must be
+         * returned unchanged instead of being dropped. */
+        const std::vector<std::vector<uint8_t>> raw_values = {
+            {0xd9},
+            {0x84},
+            {0xc5, 0x00},
+        };
+        for (const auto& raw : raw_values) {
+            auto parsed = PirateBinTester::parse_data(bin, std::vector<uint8_t>(raw), "", false);
+            CATCH_REQUIRE ( parsed.has_value() );
+            CATCH_REQUIRE_FALSE ( parsed->index.has_value() );
+            CATCH_REQUIRE ( parsed->data == raw );
+        }
+    }
     CATCH_SECTION ( "MessagePack map without a data scheme" ) {
         /* Releases up to 0.5.0 stored a MessagePack map with the data and an
          * optional signature, but no scheme nor index. */

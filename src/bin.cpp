@@ -213,9 +213,13 @@ Bin::parse_data(std::vector<uint8_t>&& value,
         DPASTE_MSG("%s", e.what());
         return std::nullopt;
     } catch (msgpack::insufficient_bytes& e) {
+        /* Releases up to 0.3.3 stored raw values which may start like an
+         * incomplete MessagePack header. Return them as unindexed packets;
+         * grouped packets are still rejected by the missing-index check in
+         * get(). */
         DPASTE_MSG("%s", e.what());
-        DPASTE_MSG("Insufficient bytes to unpack the data. The data may be corrupted or missing.");
-        return std::nullopt;
+        DPASTE_MSG("The value is not a complete MessagePack packet. Returning the raw value.");
+        return ParsedPacket { std::nullopt, std::move(value) };
     } catch (msgpack::type_error& e) {
         /* Releases up to 0.3.3 stored raw values which are not MessagePack
          * maps. Return them as unindexed packets. */
