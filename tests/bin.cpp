@@ -275,6 +275,16 @@ CATCH_TEST_CASE("Bin parsing of legacy raw values", "[Bin][parse_data]") {
             CATCH_REQUIRE ( parsed->data == raw );
         }
     }
+    CATCH_SECTION ( "raw value with an invalid MessagePack type byte" ) {
+        /* 0xc1 is not a valid MessagePack type. It used to raise
+         * msgpack::parse_error, which was not caught and aborted the
+         * process. */
+        std::vector<uint8_t> raw {0xc1};
+        auto parsed = PirateBinTester::parse_data(bin, std::move(raw), "", false);
+        CATCH_REQUIRE ( parsed.has_value() );
+        CATCH_REQUIRE_FALSE ( parsed->index.has_value() );
+        CATCH_REQUIRE ( parsed->data == std::vector<uint8_t>({0xc1}) );
+    }
     CATCH_SECTION ( "MessagePack map without a data scheme" ) {
         /* Releases up to 0.5.0 stored a MessagePack map with the data and an
          * optional signature, but no scheme nor index. */
