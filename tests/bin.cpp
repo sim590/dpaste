@@ -19,6 +19,7 @@
  */
 
 #include <algorithm>
+#include <random>
 
 #include <msgpack.hpp>
 
@@ -134,6 +135,27 @@ CATCH_TEST_CASE("Bin get/paste on DHT", "[Bin][get][paste]") {
         for (const auto& p : pp.first)
             total += p.data.size();
         CATCH_REQUIRE ( total == Bin::DPASTE_MAX_SIZE );
+    }
+}
+
+CATCH_TEST_CASE("Bin cross-key round trips", "[Bin][get][paste][cross-key]") {
+    /* 16 packets of 52 KiB fit under a single key (832 KiB). A larger paste
+     * exercises the key rollover and the reconstruction order, so use a
+     * nonuniform buffer: swapping two chunks must change the retrieved data. */
+    std::vector<uint8_t> buffer(1024 * 1024);
+    std::mt19937 gen(0xdeadbeef);
+    std::uniform_int_distribution<unsigned int> dist(0, 255);
+    std::generate(buffer.begin(), buffer.end(),
+                  [&gen, &dist] { return static_cast<uint8_t>(dist(gen)); });
+
+    Bin bin {};
+    crypto::Cipher::init();
+
+    CATCH_SECTION ( "plain data" ) {
+        test_paste(bin, buffer, true);
+    }
+    CATCH_SECTION ( "AES encrypted data" ) {
+        test_paste_encrypted(bin, buffer, true);
     }
 }
 
@@ -258,6 +280,32 @@ CATCH_TEST_CASE("Bin parsing of legacy raw values", "[Bin][parse_data]") {
         CATCH_REQUIRE ( parsed.has_value() );
         CATCH_REQUIRE_FALSE ( parsed->index.has_value() );
         CATCH_REQUIRE ( parsed->data == std::vector<uint8_t>({'r', 'a', 'w'}) );
+    }
+    CATCH_SECTION ( "raw value starting like an incomplete MessagePack header" ) {
+        /* A lone 0xd9 byte announces a MessagePack string whose length byte
+         * is missing. Releases up to 0.3.3 stored raw values, so it must be
+         * returned unchanged instead of being dropped. */
+        const std::vector<std::vector<uint8_t>> raw_values = {
+            {0xd9},
+            {0x84},
+            {0xc5, 0x00},
+        };
+        for (const auto& raw : raw_values) {
+            auto parsed = PirateBinTester::parse_data(bin, std::vector<uint8_t>(raw), "", false);
+            CATCH_REQUIRE ( parsed.has_value() );
+            CATCH_REQUIRE_FALSE ( parsed->index.has_value() );
+            CATCH_REQUIRE ( parsed->data == raw );
+        }
+    }
+    CATCH_SECTION ( "raw value with an invalid MessagePack type byte" ) {
+        /* 0xc1 is not a valid MessagePack type. It used to raise
+         * msgpack::parse_error, which was not caught and aborted the
+         * process. */
+        std::vector<uint8_t> raw {0xc1};
+        auto parsed = PirateBinTester::parse_data(bin, std::move(raw), "", false);
+        CATCH_REQUIRE ( parsed.has_value() );
+        CATCH_REQUIRE_FALSE ( parsed->index.has_value() );
+        CATCH_REQUIRE ( parsed->data == std::vector<uint8_t>({0xc1}) );
     }
     CATCH_SECTION ( "MessagePack map without a data scheme" ) {
         /* Releases up to 0.5.0 stored a MessagePack map with the data and an
