@@ -19,6 +19,7 @@
  */
 
 #include <algorithm>
+#include <chrono>
 #include <random>
 #include <future>
 #include <cstdlib>
@@ -37,6 +38,14 @@ namespace dpaste {
 const constexpr char* Node::DPASTE_USER_TYPE;
 
 namespace {
+
+/* Upper bound on the wait for the local node's callbacks. A callback that is
+ * never invoked must not hang the CLI: the stragglers stay marked as failed,
+ * so Bin::paste reports the failure (or retries on the local node) instead of
+ * blocking forever. A duplicated callback must not keep decrementing the
+ * pending count either, since it would wrap around and never release the
+ * wait. */
+constexpr std::chrono::seconds BATCH_WAIT_TIMEOUT {60};
 
 /**
  * Directory holding the on-disk OpenDHT node state.
@@ -100,7 +109,8 @@ bool Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSim
         /* Submit before taking the lock: a callback invoked inline by put()
          * would otherwise deadlock on the same non-recursive mutex. */
         std::unique_lock<std::mutex> lk(mtx);
-        cv.wait(lk, [&](){ return done; });
+        if (not cv.wait_for(lk, BATCH_WAIT_TIMEOUT, [&](){ return done; }))
+            std::cerr << OPERATION_FAILURE_MSG << " (put timeout)" << std::endl;
         return success_;
     }
 }
@@ -153,7 +163,9 @@ Node::pasteAll(std::vector<std::pair<std::string, dht::Blob>>&& items) {
                 std::cerr << OPERATION_FAILURE_MSG << " (put)" << std::endl;
             else
                 results[i] = true;
-            if (--pending == 0)
+            if (pending > 0)
+                --pending;
+            if (pending == 0)
                 cv.notify_all();
         });
     }
@@ -162,7 +174,9 @@ Node::pasteAll(std::vector<std::pair<std::string, dht::Blob>>&& items) {
      * invoked inline by put() cannot deadlock on the same non-recursive
      * mutex. */
     std::unique_lock<std::mutex> lk(mtx);
-    cv.wait(lk, [&]{ return pending == 0; });
+    cv.wait_for(lk, BATCH_WAIT_TIMEOUT, [&]{ return pending == 0; });
+    if (pending > 0)
+        std::cerr << OPERATION_FAILURE_MSG << " (put timeout)" << std::endl;
     return results;
 }
 
