@@ -18,13 +18,14 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <algorithm>
 #include <chrono>
 #include <random>
 #include <future>
 #include <cstdlib>
 #include <filesystem>
+#include <condition_variable>
 #include <iostream>
+#include <mutex>
 #include <optional>
 
 #include <opendht.h>
@@ -82,64 +83,12 @@ void Node::run(uint16_t port, std::string bootstrap_hostname, std::string bootst
     running_ = true;
 }
 
-bool Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
-    auto v = std::make_shared<dht::Value>(std::forward<dht::Blob>(blob));
-    v->user_type = DPASTE_USER_TYPE;
-
-    auto hash = dht::InfoHash::get(code);
-
-    if (cb) {
-        node_.put(hash, v, cb);
-        return true;
-    } else {
-        std::mutex mtx;
-        std::condition_variable cv;
-        bool done = false, success_ {false};
-        node_.put(hash, v, [&](bool success) {
-            {
-                std::unique_lock<std::mutex> lk(mtx);
-                if (not success)
-                    std::cerr << OPERATION_FAILURE_MSG << " (put)" << std::endl;
-                else
-                    success_ = true;
-                done = true;
-            }
-            cv.notify_all();
-        });
-        /* Submit before taking the lock: a callback invoked inline by put()
-         * would otherwise deadlock on the same non-recursive mutex. */
-        std::unique_lock<std::mutex> lk(mtx);
-        if (not cv.wait_for(lk, BATCH_WAIT_TIMEOUT, [&](){ return done; }))
-            std::cerr << OPERATION_FAILURE_MSG << " (put timeout)" << std::endl;
-        return success_;
-    }
-}
-
-void Node::get(const std::string& code, PastedCallback&& pcb) {
-    auto blobs = std::make_shared<std::vector<dht::Blob>>();
-    node_.get(dht::InfoHash::get(code),
-        [blobs](std::shared_ptr<dht::Value> value) {
-            blobs->emplace_back(value->data);
-            return true;
-        },
-        [pcb,blobs](bool success) {
-            if (not success)
-                std::cerr << OPERATION_FAILURE_MSG << " (get)" << std::endl;
-            else if (pcb)
-                pcb(*blobs);
-        }, dht::Value::AllFilter(), dht::Where{}.userType(std::string(DPASTE_USER_TYPE))
-    );
+bool Node::paste(const std::string& code, dht::Blob&& blob) {
+    return pasteAll({{code, std::move(blob)}}).front();
 }
 
 std::vector<dht::Blob> Node::get(const std::string& code) {
-    auto values = node_.get(dht::InfoHash::get(code),
-            dht::Value::AllFilter(),
-            dht::Where{}.userType(DPASTE_USER_TYPE)).get();
-    std::vector<dht::Blob> blobs (values.size());
-    std::transform(values.begin(), values.end(), blobs.begin(), [] (const decltype(values)::value_type& value) {
-        return value->data;
-    });
-    return blobs;
+    return getAll({code}).front();
 }
 
 std::vector<bool>
