@@ -85,7 +85,6 @@ bool Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSim
     } else {
         std::mutex mtx;
         std::condition_variable cv;
-        std::unique_lock<std::mutex> lk(mtx);
         bool done = false, success_ {false};
         node_.put(hash, v, [&](bool success) {
             {
@@ -98,6 +97,9 @@ bool Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSim
             }
             cv.notify_all();
         });
+        /* Submit before taking the lock: a callback invoked inline by put()
+         * would otherwise deadlock on the same non-recursive mutex. */
+        std::unique_lock<std::mutex> lk(mtx);
         cv.wait(lk, [&](){ return done; });
         return success_;
     }
@@ -138,7 +140,6 @@ Node::pasteAll(std::vector<std::pair<std::string, dht::Blob>>&& items) {
 
     std::mutex mtx;
     std::condition_variable cv;
-    std::unique_lock<std::mutex> lk(mtx);
     size_t pending = items.size();
     size_t idx     = 0;
 
@@ -157,7 +158,10 @@ Node::pasteAll(std::vector<std::pair<std::string, dht::Blob>>&& items) {
         });
     }
 
-    /* Every put has been submitted; wait for all of their callbacks to run. */
+    /* Every put has been submitted; take the lock only now so that a callback
+     * invoked inline by put() cannot deadlock on the same non-recursive
+     * mutex. */
+    std::unique_lock<std::mutex> lk(mtx);
     cv.wait(lk, [&]{ return pending == 0; });
     return results;
 }
