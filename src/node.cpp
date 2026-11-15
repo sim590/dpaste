@@ -164,36 +164,26 @@ Node::pasteAll(std::vector<std::pair<std::string, dht::Blob>>&& items) {
 
 std::vector<std::vector<dht::Blob>>
 Node::getAll(const std::vector<std::string>& codes) {
-    std::vector<std::vector<dht::Blob>> results(codes.size());
-    if (codes.empty())
-        return results;
+    /* Submit every lookup first so that they run concurrently, then collect
+     * the results. The futures are bounded by OpenDHT's own query timeout,
+     * so no condition variable or callback lifetime handling is needed. */
+    std::vector<std::future<std::vector<std::shared_ptr<dht::Value>>>> futures;
+    futures.reserve(codes.size());
+    for (const auto& code : codes)
+        futures.emplace_back(node_.get(dht::InfoHash::get(code),
+                                       dht::Value::AllFilter(),
+                                       dht::Where{}.userType(std::string(DPASTE_USER_TYPE))));
 
-    std::mutex mtx;
-    std::condition_variable cv;
-    std::unique_lock<std::mutex> lk(mtx);
-    size_t pending = codes.size();
-    size_t idx     = 0;
-
-    for (const auto& code : codes) {
-        const size_t i = idx++;
-        node_.get(dht::InfoHash::get(code),
-            [&results, i](std::shared_ptr<dht::Value> value) {
-                results[i].emplace_back(value->data);
-                return true;
-            },
-            [&, i](bool success) {
-                std::lock_guard<std::mutex> g(mtx);
-                if (not success)
-                    std::cerr << OPERATION_FAILURE_MSG << " (get)" << std::endl;
-                if (--pending == 0)
-                    cv.notify_all();
-            },
-            dht::Value::AllFilter(), dht::Where{}.userType(std::string(DPASTE_USER_TYPE))
-        );
+    std::vector<std::vector<dht::Blob>> results;
+    results.reserve(futures.size());
+    for (auto& future : futures) {
+        const auto values = future.get();
+        std::vector<dht::Blob> blobs;
+        blobs.reserve(values.size());
+        for (const auto& value : values)
+            blobs.emplace_back(value->data);
+        results.emplace_back(std::move(blobs));
     }
-
-    /* Every lookup has been submitted; wait for all of their callbacks to run. */
-    cv.wait(lk, [&]{ return pending == 0; });
     return results;
 }
 
