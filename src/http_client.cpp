@@ -118,6 +118,11 @@ static const constexpr size_t MAX_INFLIGHT_REQUESTS {32};
 /* Timeouts (in seconds) so that a stuck transfer cannot stall a whole batch. */
 static const constexpr long CONNECT_TIMEOUT_S {5};
 static const constexpr long REQUEST_TIMEOUT_S {120};
+/* Upper bound (in milliseconds) on a single wait for transfer activity.
+ * libcurl only processes its own timers when control returns to
+ * curl_multi_perform, so select() must not block indefinitely when no socket
+ * is ready: the connect and total timeouts above would never fire. */
+static const constexpr int TRANSFER_WAIT_MS {100};
 
 /* Wait until one of the multi transfers makes progress: select() on curl's
  * file descriptors, or a short sleep when it only waits on a timer (DNS,
@@ -131,9 +136,12 @@ void waitTransferActivity(curlpp::Multi& multi) {
     int maxfd = -1;
     multi.fdset(&fdread, &fdwrite, &fdexcep, &maxfd);
     if (maxfd == -1)
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    else
-        ::select(maxfd + 1, &fdread, &fdwrite, &fdexcep, nullptr);
+        std::this_thread::sleep_for(std::chrono::milliseconds(TRANSFER_WAIT_MS));
+    else {
+        /* timeval takes microseconds. */
+        timeval timeout { 0, TRANSFER_WAIT_MS * 1000 };
+        ::select(maxfd + 1, &fdread, &fdwrite, &fdexcep, &timeout);
+    }
 }
 
 /**
