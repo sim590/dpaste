@@ -113,7 +113,10 @@ std::string makeRequestBody(const std::string& data) {
     }.dump();
 }
 
-/* Maximum number of transfers kept in flight at once by the batch operations. */
+/* Maximum number of transfers kept in flight at once by a batch. The bound is
+ * per call, not process-wide: the CLI runs one batch at a time, so this is the
+ * total number of connections to the proxy. Code that runs several batches
+ * concurrently must bound their sum itself (see #43). */
 static const constexpr size_t MAX_INFLIGHT_REQUESTS {32};
 /* Timeouts (in seconds) so that a stuck transfer cannot stall a whole batch. */
 static const constexpr long CONNECT_TIMEOUT_S {5};

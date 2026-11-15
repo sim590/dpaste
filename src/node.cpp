@@ -153,6 +153,9 @@ Node::pasteAll(std::vector<std::pair<std::string, dht::Blob>>&& items) {
     size_t pending = items.size();
     size_t idx     = 0;
 
+    /* The local node path has no in-flight bound: every put is submitted at
+     * once. The batch is bounded by the maximum paste size (at most 40 packets
+     * for a 2 MiB paste), and OpenDHT queues the operations internally. */
     for (auto& [code, blob] : items) {
         auto v = std::make_shared<dht::Value>(std::move(blob));
         v->user_type = DPASTE_USER_TYPE;
