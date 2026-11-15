@@ -168,9 +168,14 @@ void runBatch(size_t count,
 
     auto add = [&](size_t i) {
         auto req = makeRequest(i);
-        attached.emplace(req.get(), i);
-        multi.add(req.get());
+        /* Take ownership of the handle before attaching it, and record it in
+         * `attached` only once multi.add() has succeeded: the cleanup loop
+         * must never receive the address of a handle that is about to be
+         * destroyed. */
         handles.emplace_back(std::move(req));
+        const auto* handle = handles.back().get();
+        multi.add(handle);
+        attached.emplace(handle, i);
     };
 
     size_t next   = 0;
