@@ -18,12 +18,14 @@
  * along with dpaste.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <algorithm>
+#include <chrono>
 #include <random>
 #include <future>
 #include <cstdlib>
 #include <filesystem>
+#include <condition_variable>
 #include <iostream>
+#include <mutex>
 #include <optional>
 
 #include <opendht.h>
@@ -37,6 +39,14 @@ namespace dpaste {
 const constexpr char* Node::DPASTE_USER_TYPE;
 
 namespace {
+
+/* Upper bound on the wait for the local node's callbacks. A callback that is
+ * never invoked must not hang the CLI: the stragglers stay marked as failed,
+ * so Bin::paste reports the failure (or retries on the local node) instead of
+ * blocking forever. A duplicated callback must not keep decrementing the
+ * pending count either, since it would wrap around and never release the
+ * wait. */
+constexpr std::chrono::seconds BATCH_WAIT_TIMEOUT {60};
 
 /**
  * Directory holding the on-disk OpenDHT node state.
@@ -73,61 +83,78 @@ void Node::run(uint16_t port, std::string bootstrap_hostname, std::string bootst
     running_ = true;
 }
 
-bool Node::paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb) {
-    auto v = std::make_shared<dht::Value>(std::forward<dht::Blob>(blob));
-    v->user_type = DPASTE_USER_TYPE;
-
-    auto hash = dht::InfoHash::get(code);
-
-    if (cb) {
-        node_.put(hash, v, cb);
-        return true;
-    } else {
-        std::mutex mtx;
-        std::condition_variable cv;
-        std::unique_lock<std::mutex> lk(mtx);
-        bool done = false, success_ {false};
-        node_.put(hash, v, [&](bool success) {
-            {
-                std::unique_lock<std::mutex> lk(mtx);
-                if (not success)
-                    std::cerr << OPERATION_FAILURE_MSG << " (put)" << std::endl;
-                else
-                    success_ = true;
-                done = true;
-            }
-            cv.notify_all();
-        });
-        cv.wait(lk, [&](){ return done; });
-        return success_;
-    }
-}
-
-void Node::get(const std::string& code, PastedCallback&& pcb) {
-    auto blobs = std::make_shared<std::vector<dht::Blob>>();
-    node_.get(dht::InfoHash::get(code),
-        [blobs](std::shared_ptr<dht::Value> value) {
-            blobs->emplace_back(value->data);
-            return true;
-        },
-        [pcb,blobs](bool success) {
-            if (not success)
-                std::cerr << OPERATION_FAILURE_MSG << " (get)" << std::endl;
-            else if (pcb)
-                pcb(*blobs);
-        }, dht::Value::AllFilter(), dht::Where{}.userType(std::string(DPASTE_USER_TYPE))
-    );
+bool Node::paste(const std::string& code, dht::Blob&& blob) {
+    return pasteAll({{code, std::move(blob)}}).front();
 }
 
 std::vector<dht::Blob> Node::get(const std::string& code) {
-    auto values = node_.get(dht::InfoHash::get(code),
-            dht::Value::AllFilter(),
-            dht::Where{}.userType(DPASTE_USER_TYPE)).get();
-    std::vector<dht::Blob> blobs (values.size());
-    std::transform(values.begin(), values.end(), blobs.begin(), [] (const decltype(values)::value_type& value) {
-        return value->data;
-    });
-    return blobs;
+    return getAll({code}).front();
+}
+
+std::vector<bool>
+Node::pasteAll(std::vector<std::pair<std::string, dht::Blob>>&& items) {
+    std::vector<bool> results(items.size(), false);
+    if (items.empty())
+        return results;
+
+    std::mutex mtx;
+    std::condition_variable cv;
+    size_t pending = items.size();
+    size_t idx     = 0;
+
+    /* The local node path has no in-flight bound: every put is submitted at
+     * once. The batch is bounded by the maximum paste size (at most 40 packets
+     * for a 2 MiB paste), and OpenDHT queues the operations internally. */
+    for (auto& [code, blob] : items) {
+        auto v = std::make_shared<dht::Value>(std::move(blob));
+        v->user_type = DPASTE_USER_TYPE;
+
+        node_.put(dht::InfoHash::get(code), v, [&, i = idx++](bool success) {
+            std::lock_guard<std::mutex> g(mtx);
+            if (not success)
+                std::cerr << OPERATION_FAILURE_MSG << " (put)" << std::endl;
+            else
+                results[i] = true;
+            if (pending > 0)
+                --pending;
+            if (pending == 0)
+                cv.notify_all();
+        });
+    }
+
+    /* Every put has been submitted; take the lock only now so that a callback
+     * invoked inline by put() cannot deadlock on the same non-recursive
+     * mutex. */
+    std::unique_lock<std::mutex> lk(mtx);
+    cv.wait_for(lk, BATCH_WAIT_TIMEOUT, [&]{ return pending == 0; });
+    if (pending > 0)
+        std::cerr << OPERATION_FAILURE_MSG << " (put timeout)" << std::endl;
+    return results;
+}
+
+std::vector<std::vector<dht::Blob>>
+Node::getAll(const std::vector<std::string>& codes) {
+    /* Submit every lookup first so that they run concurrently, then collect
+     * the results. The futures are bounded by OpenDHT's own query timeout,
+     * so no condition variable or callback lifetime handling is needed. */
+    std::vector<std::future<std::vector<std::shared_ptr<dht::Value>>>> futures;
+    futures.reserve(codes.size());
+    for (const auto& code : codes)
+        futures.emplace_back(node_.get(dht::InfoHash::get(code),
+                                       dht::Value::AllFilter(),
+                                       dht::Where{}.userType(std::string(DPASTE_USER_TYPE))));
+
+    std::vector<std::vector<dht::Blob>> results;
+    results.reserve(futures.size());
+    for (auto& future : futures) {
+        const auto values = future.get();
+        std::vector<dht::Blob> blobs;
+        blobs.reserve(values.size());
+        for (const auto& value : values)
+            blobs.emplace_back(value->data);
+        results.emplace_back(std::move(blobs));
+    }
+    return results;
 }
 
 } /* dpaste */

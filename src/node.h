@@ -23,6 +23,8 @@
 #include <cstdint>
 #include <string>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include <opendht/dhtrunner.h>
 #include <opendht/value.h>
@@ -49,8 +51,6 @@ class Node {
     static const constexpr char* OPERATION_FAILURE_MSG = "err.. DHT operation failed.";
 
 public:
-    using PastedCallback = std::function<void(std::vector<dht::Blob>)>;
-
     static const constexpr char* DPASTE_USER_TYPE = "dpaste";
 
     Node() {}
@@ -94,24 +94,15 @@ public:
     }
 
     /**
-     * Pastes a blob on the DHT under a given code. If no callback, the function
-     * blocks until pasting on the DHT is done.
+     * Pastes a blob on the DHT under a given code. Blocks until the put is
+     * done.
      *
+     * @param code  The code to paste under.
      * @param blob  The blob to paste.
-     * @param cb    A function to execute when paste is done. If empty, the
-     *              function will block until done.
      *
      * @return true if success, else false.
      */
-    bool paste(const std::string& code, dht::Blob&& blob, dht::DoneCallbackSimple&& cb = {});
-
-    /**
-     * Recover a blob under a given code.
-     *
-     * @param code  The code to lookup.
-     * @param cb    A function to execute when the pasted blob is retrieved.
-     */
-    void get(const std::string& code, PastedCallback&& cb);
+    bool paste(const std::string& code, dht::Blob&& blob);
 
     /**
      * Recover blob values under a given code. This function blocks until the
@@ -122,6 +113,26 @@ public:
      * @return the blobs.
      */
     std::vector<dht::Blob> get(const std::string& code);
+
+    /**
+     * Publish several (code, blob) pairs at once. Blocks until every put has
+     * completed.
+     *
+     * @param items  The (code, blob) pairs to publish.
+     *
+     * @return one success flag per item, in the same order.
+     */
+    std::vector<bool> pasteAll(std::vector<std::pair<std::string, dht::Blob>>&& items);
+
+    /**
+     * Recover the blob values for several codes at once. Blocks until every
+     * lookup has completed.
+     *
+     * @param codes  The codes to lookup.
+     *
+     * @return the blobs recovered for each code, in the same order.
+     */
+    std::vector<std::vector<dht::Blob>> getAll(const std::vector<std::string>& codes);
 
 private:
 

@@ -22,6 +22,7 @@
 
 #include <vector>
 #include <string>
+#include <utility>
 
 namespace dpaste {
 
@@ -35,6 +36,29 @@ public:
      * GET on the server's /node/stats endpoint.
      */
     bool isAvailable() const;
+
+    /**
+     * Send a GET request for several codes at once. The requests are issued
+     * concurrently, keeping a bounded number of transfers in flight.
+     *
+     * @param codes  The location codes.
+     *
+     * @return The values recovered for each code, in the same order. An empty
+     *         list means the request failed or the server has no such value.
+     */
+    std::vector<std::vector<std::string>> getAll(const std::vector<std::string>& codes) const;
+
+    /**
+     * Send a PUT request for several (code, data) pairs at once. The requests
+     * are issued concurrently, keeping a bounded number of transfers in
+     * flight.
+     *
+     * @param items  The (code, data) pairs to publish.
+     *
+     * @return One flag per item, in the same order: true if the server
+     *         accepted and completed the request, false otherwise.
+     */
+    std::vector<bool> putAll(const std::vector<std::pair<std::string, std::string>>& items) const;
 
     /**
      * Send a GET request to the REST server.
