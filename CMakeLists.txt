@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(dpaste)
 include(GNUInstallDirs)
-set(dpaste_VERSION 0.5.0)
+set(dpaste_VERSION 0.6.0)
 add_definitions(-DVERSION="${dpaste_VERSION}")
 add_definitions(-DPACKAGE_NAME="dpaste")
 
