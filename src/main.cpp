@@ -155,7 +155,7 @@ void print_help() {
 
     std::cout << "    --self-recipient" << std::endl
               << "        Include self as recipient. Self refers to the key id configured for signing" << std::endl;
-    std::cout << "        (see --sign description). This only takes effect if option \"-e\" is also used." << std::endl;
+    std::cout << "        (see --sign description). This only takes effect if option \"-r\" is also used." << std::endl;
 
     std::cout << std::endl;
     std::cout << "When -g option is ommited, " << PACKAGE_NAME << " will read its standard input for a file to paste."
